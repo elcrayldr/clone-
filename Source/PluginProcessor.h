@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include <array>
 #include <cstdint>
+#include <atomic>
 
 class CrayLdrDrumkitCloneAudioProcessor final : public juce::AudioProcessor
 {
@@ -32,6 +33,7 @@ public:
     static constexpr int firstMidiNote = 36;
     static constexpr int padCount = 64;
     static constexpr int lastMidiNote = firstMidiNote + padCount - 1;
+    void triggerPad(int padIndex, float velocity = 0.9f) noexcept;
 
 private:
     struct Voice
@@ -46,6 +48,7 @@ private:
 
     static constexpr int maxVoices = 32;
     std::array<Voice, maxVoices> voices {};
+    std::array<std::atomic<float>, padCount> pendingPadVelocities {};
     double currentSampleRate = 44100.0;
 
     void startVoice(int midiNote, float velocity) noexcept;
