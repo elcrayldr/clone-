@@ -174,7 +174,7 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
     std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(file));
     if (reader == nullptr)
     {
-        errorMessage = "Unsupported or unreadable audio format. Use WAV, AIFF or MP3.";
+        errorMessage = "Unsupported or unreadable audio format. Use WAV or AIFF in this prototype.";
         return 0;
     }
 
