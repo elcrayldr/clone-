@@ -168,6 +168,12 @@ void CrayLdrDrumkitCloneAudioProcessor::triggerPad(int padIndex, float velocity)
         pendingPadVelocities[static_cast<size_t>(padIndex)].store(juce::jlimit(0.0f, 1.0f, velocity), std::memory_order_release);
 }
 
+bool CrayLdrDrumkitCloneAudioProcessor::isPadLoaded(int padIndex) const noexcept
+{
+    return padIndex >= 0 && padIndex < padCount
+        && padSamplePointers[static_cast<size_t>(padIndex)].load(std::memory_order_acquire) != nullptr;
+}
+
 void CrayLdrDrumkitCloneAudioProcessor::startVoice(int midiNote, float velocity) noexcept
 {
     if (midiNote < firstMidiNote || midiNote > lastMidiNote || velocity <= 0.0f)
