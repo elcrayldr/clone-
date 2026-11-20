@@ -419,7 +419,7 @@ void CrayLdrDrumkitCloneAudioProcessor::importAudioFileAsync(
                 if (completion)
                     completion(count, error);
             });
-    }, true);
+    });
 }
 
 bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
@@ -452,16 +452,14 @@ bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
             return false;
         }
 
-        juce::AudioFormatWriterOptions options;
-        options = options.withSampleRate(sample->sampleRate)
-                         .withNumChannels(1)
-                         .withBitsPerSample(24);
-        auto writer = wav.createWriterFor(std::move(outputStream), options);
-        if (writer == nullptr)
+        auto* rawWriter = wav.createWriterFor(outputStream.get(), sample->sampleRate, 1u, 24, {}, 0);
+        if (rawWriter == nullptr)
         {
             errorMessage = "Could not initialise WAV writer for: " + outputFile.getFileName();
             return false;
         }
+        outputStream.release();
+        std::unique_ptr<juce::AudioFormatWriter> writer(rawWriter);
 
         if (!writer->writeFromAudioSampleBuffer(sample->audio, 0, sample->audio.getNumSamples()))
         {
