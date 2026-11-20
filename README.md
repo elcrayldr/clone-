@@ -65,7 +65,7 @@ GitHub Actions performs the same Windows x64 build and runs the automated CTest 
 ## Technical limits of the current slicer
 
 - Maximum import duration: 10 minutes.
-- Input: mono or stereo, 8–384 kHz.
+- Input formats: WAV, AIFF, FLAC and Ogg Vorbis; mono or stereo, 8–384 kHz. MP3 decoding is not enabled in the commercial target pending codec/licensing review.
 - Decoded source buffer limit: 256 MB.
 - Maximum retained samples per plugin instance: 256; restart the plugin to reset this safety limit.
 - Maximum segment duration: 1.25 seconds.
