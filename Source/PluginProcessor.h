@@ -6,12 +6,13 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <functional>
 
 class CrayLdrDrumkitCloneAudioProcessor final : public juce::AudioProcessor
 {
 public:
     CrayLdrDrumkitCloneAudioProcessor();
-    ~CrayLdrDrumkitCloneAudioProcessor() override = default;
+    ~CrayLdrDrumkitCloneAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -39,6 +40,8 @@ public:
 
     void triggerPad(int padIndex, float velocity = 0.9f) noexcept;
     int importAudioFile(const juce::File& file, juce::String& errorMessage);
+    void importAudioFileAsync(juce::File file, std::function<void(int, juce::String)> completion);
+    bool exportKitToDirectory(const juce::File& directory, juce::String& errorMessage) const;
 
 private:
     struct SampleData
@@ -63,6 +66,7 @@ private:
     std::array<std::atomic<const SampleData*>, padCount> padSamplePointers {};
     std::vector<std::unique_ptr<SampleData>> samplePool;
     std::mutex importMutex;
+    juce::ThreadPool importWorkers { 1 };
     static constexpr size_t maxRetainedSamples = 256;
     std::array<std::atomic<float>, padCount> pendingPadVelocities {};
     double currentSampleRate = 44100.0;
