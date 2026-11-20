@@ -89,7 +89,7 @@ GitHub Actions performs the same Windows x64 build and runs the automated CTest 
 The Drumkit Clone is built as a **VST3 instrument**, not a mixer insert effect.
 
 1. Extract the release ZIP once. The folder `CRAY LDR - DRUMKIT CLONE.vst3` must be directly inside the Windows VST3 directory:
-   `C:\\Program Files\\Common Files\\VST3\\`
+   `C:\Program Files\Common Files\VST3\`
 2. In FL Studio, open **Options → Manage plugins** and run **Find plugins**.
 3. Load the plugin from the instrument/plugin list in the Channel Rack. Do not try to insert it as an effect on a Mixer track.
 
