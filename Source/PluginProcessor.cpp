@@ -127,14 +127,25 @@ float CrayLdrDrumkitCloneAudioProcessor::renderVoice(Voice& voice) noexcept
     return sample * velocity * 0.22f;
 }
 
+void CrayLdrDrumkitCloneAudioProcessor::triggerPad(int padIndex, float velocity) noexcept
+{
+    if (padIndex >= 0 && padIndex < padCount)
+        pendingPadVelocities[static_cast<size_t>(padIndex)].store(juce::jlimit(0.0f, 1.0f, velocity), std::memory_order_release);
+}
+
 void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
 
-    int nextMidiEvent = 0;
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        const float velocity = pendingPadVelocities[static_cast<size_t>(pad)].exchange(0.0f, std::memory_order_acq_rel);
+        if (velocity > 0.0f)
+            startVoice(firstMidiNote + pad, velocity);
+    }
+
     auto midiIt = midiMessages.cbegin();
-    juce::MidiMessageMetadata metadata;
 
     for (int sampleIndex = 0; sampleIndex < buffer.getNumSamples(); ++sampleIndex)
     {
@@ -144,7 +155,6 @@ void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& b
             if (message.isNoteOn())
                 startVoice(message.getNoteNumber(), message.getFloatVelocity());
             ++midiIt;
-            ++nextMidiEvent;
         }
 
         float mixed = 0.0f;
@@ -155,7 +165,6 @@ void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& b
             buffer.setSample(channel, sampleIndex, mixed);
     }
 
-    juce::ignoreUnused(nextMidiEvent, metadata);
 }
 
 juce::AudioProcessorEditor* CrayLdrDrumkitCloneAudioProcessor::createEditor()
