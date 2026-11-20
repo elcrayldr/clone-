@@ -65,7 +65,7 @@ void CrayLdrDrumkitCloneAudioProcessor::startVoice(int midiNote, float velocity)
     target->velocity = juce::jlimit(0.0f, 1.0f, velocity);
     target->noiseState = 0x9e3779b9u ^ static_cast<std::uint32_t>(midiNote * 7919 + midiNote * 17);
     const int pad = midiNote - firstMidiNote;
-    target->sample = std::atomic_load_explicit(&padSamples[static_cast<size_t>(pad)], std::memory_order_acquire);
+    target->sample = padSamplePointers[static_cast<size_t>(pad)].load(std::memory_order_acquire);
 }
 
 float CrayLdrDrumkitCloneAudioProcessor::renderVoice(Voice& voice) noexcept
@@ -81,7 +81,7 @@ float CrayLdrDrumkitCloneAudioProcessor::renderVoice(Voice& voice) noexcept
         if (index0 >= audio.getNumSamples())
         {
             voice.active = false;
-            voice.sample.reset();
+            voice.sample = nullptr;
             return 0.0f;
         }
 
@@ -162,6 +162,7 @@ float CrayLdrDrumkitCloneAudioProcessor::renderVoice(Voice& voice) noexcept
 
 int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, juce::String& errorMessage)
 {
+    std::lock_guard<std::mutex> importLock(importMutex);
     errorMessage.clear();
     if (!file.existsAsFile())
     {
@@ -256,15 +257,24 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
     std::sort(onsets.begin(), onsets.end(),
         [](const auto& a, const auto& b) { return a.first < b.first; });
 
+    const size_t retainedCount = samplePool.size();
+    if (retainedCount >= maxRetainedSamples)
+    {
+        errorMessage = "Sample memory safety limit reached. Restart the plugin before importing another kit.";
+        return 0;
+    }
+
     for (int pad = 0; pad < padCount; ++pad)
-        std::atomic_store_explicit(&padSamples[static_cast<size_t>(pad)],
-                                   std::shared_ptr<const SampleData> {}, std::memory_order_release);
+        padSamplePointers[static_cast<size_t>(pad)].store(nullptr, std::memory_order_release);
 
     const int preRoll = static_cast<int>(reader->sampleRate * 0.010);
     const int maxLength = static_cast<int>(reader->sampleRate * maxSampleSeconds);
     int loaded = 0;
 
-    for (size_t i = 0; i < onsets.size() && loaded < padCount; ++i)
+    const size_t availableSlots = maxRetainedSamples - retainedCount;
+    const size_t maxToLoad = juce::jmin(static_cast<size_t>(padCount), availableSlots);
+
+    for (size_t i = 0; i < onsets.size() && static_cast<size_t>(loaded) < maxToLoad; ++i)
     {
         const int start = juce::jmax(0, onsets[i].first - preRoll);
         int end = juce::jmin(totalSamples, start + maxLength);
@@ -279,7 +289,7 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
         if (length < static_cast<int>(reader->sampleRate * 0.025))
             continue;
 
-        auto sample = std::make_shared<SampleData>();
+        auto sample = std::make_unique<SampleData>();
         sample->audio.setSize(1, length);
         sample->sampleRate = reader->sampleRate;
 
@@ -292,9 +302,9 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
             sample->audio.setSample(0, position, mono);
         }
 
-        std::shared_ptr<const SampleData> immutableSample = sample;
-        std::atomic_store_explicit(&padSamples[static_cast<size_t>(loaded)],
-                                   std::move(immutableSample), std::memory_order_release);
+        const auto* samplePointer = sample.get();
+        samplePool.push_back(std::move(sample));
+        padSamplePointers[static_cast<size_t>(loaded)].store(samplePointer, std::memory_order_release);
         ++loaded;
     }
 
