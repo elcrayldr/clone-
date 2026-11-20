@@ -441,6 +441,23 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
             sample->audio.setSample(0, position, mono);
         }
 
+        // Short edge fades prevent clicks without softening the main transient.
+        const int fadeInSamples = juce::jmin(length / 2, juce::jmax(1, static_cast<int>(reader->sampleRate * 0.001)));
+        const int fadeOutSamples = juce::jmin(length / 2, juce::jmax(1, static_cast<int>(reader->sampleRate * 0.003)));
+        auto* sampleData = sample->audio.getWritePointer(0);
+        for (int position = 0; position < fadeInSamples; ++position)
+        {
+            const float gain = fadeInSamples > 1
+                ? static_cast<float>(position) / static_cast<float>(fadeInSamples - 1) : 1.0f;
+            sampleData[position] *= gain;
+        }
+        for (int position = 0; position < fadeOutSamples; ++position)
+        {
+            const float gain = fadeOutSamples > 1
+                ? static_cast<float>(fadeOutSamples - 1 - position) / static_cast<float>(fadeOutSamples - 1) : 0.0f;
+            sampleData[length - fadeOutSamples + position] *= gain;
+        }
+
         importedSamples[static_cast<size_t>(loaded)] = std::move(sample);
         ++loaded;
     }
