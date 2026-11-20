@@ -53,7 +53,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     exportButton.onClick = [this]
     {
         exportChooser = std::make_unique<juce::FileChooser>(
-            "Export drum kit", juce::File{}, juce::FileBrowserComponent::canSelectDirectories);
+            "Export drum kit", juce::File{}, "");
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
         juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
         exportChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
