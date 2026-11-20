@@ -1,8 +1,9 @@
 #pragma once
 #include <JuceHeader.h>
 #include <array>
-#include <cstdint>
 #include <atomic>
+#include <cstdint>
+#include <memory>
 
 class CrayLdrDrumkitCloneAudioProcessor final : public juce::AudioProcessor
 {
@@ -21,7 +22,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double get tailLengthSeconds() const override { return 1.5; }
+    double getTailLengthSeconds() const override { return 1.5; }
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
@@ -33,9 +34,17 @@ public:
     static constexpr int firstMidiNote = 36;
     static constexpr int padCount = 64;
     static constexpr int lastMidiNote = firstMidiNote + padCount - 1;
+
     void triggerPad(int padIndex, float velocity = 0.9f) noexcept;
+    int importAudioFile(const juce::File& file, juce::String& errorMessage);
 
 private:
+    struct SampleData
+    {
+        juce::AudioBuffer<float> audio;
+        double sampleRate = 44100.0;
+    };
+
     struct Voice
     {
         bool active = false;
@@ -44,11 +53,12 @@ private:
         int age = 0;
         float velocity = 0.0f;
         std::uint32_t noiseState = 0x1234567u;
+        std::shared_ptr<const SampleData> sample;
     };
 
     static constexpr int maxVoices = 32;
     std::array<Voice, maxVoices> voices {};
-    std::array<std::atomic<float>, padCount> pendingPadVelocities {};
+    std::array<std::shared_ptr<const SampleData>, padCount> padSamples {};
     double currentSampleRate = 44100.0;
 
     void startVoice(int midiNote, float velocity) noexcept;
