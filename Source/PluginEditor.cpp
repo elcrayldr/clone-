@@ -29,6 +29,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         button.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
         button.onClick = [this, i]
         {
+            audioProcessor.triggerPad(i, 0.9f);
             selectedPad = i;
             selection.setText("SELECTED: PAD " + juce::String(i + 1).paddedLeft('0', 2)
                 + "  /  MIDI NOTE " + juce::String(CrayLdrDrumkitCloneAudioProcessor::firstMidiNote + i),
