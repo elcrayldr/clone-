@@ -17,6 +17,85 @@ CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
 {
 }
 
+void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+{
+    std::lock_guard<std::mutex> lock(importMutex);
+    juce::MemoryOutputStream stream(destData, false);
+    stream.writeInt(0x434C4452); // CLDR
+    stream.writeInt(1);          // state format version
+    stream.writeInt(padCount);
+
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        const auto* sample = padSamplePointers[static_cast<size_t>(pad)].load(std::memory_order_acquire);
+        const int length = sample != nullptr ? sample->audio.getNumSamples() : 0;
+        stream.writeInt(length);
+        if (length > 0)
+        {
+            stream.writeDouble(sample->sampleRate);
+            stream.write(sample->audio.getReadPointer(0), static_cast<size_t>(length) * sizeof(float));
+        }
+    }
+}
+
+void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+{
+    if (data == nullptr || sizeInBytes < 12)
+        return;
+
+    std::lock_guard<std::mutex> lock(importMutex);
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (stream.readInt() != 0x434C4452 || stream.readInt() != 1 || stream.readInt() != padCount)
+        return;
+
+    std::array<std::unique_ptr<SampleData>, padCount> restored {};
+    size_t requiredSlots = 0;
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        const int length = stream.readInt();
+        if (length < 0 || length > 192000)
+            return;
+        if (length == 0)
+            continue;
+
+        const double rate = stream.readDouble();
+        if (!std::isfinite(rate) || rate < 8000.0 || rate > 384000.0)
+            return;
+
+        auto sample = std::make_unique<SampleData>();
+        sample->sampleRate = rate;
+        sample->audio.setSize(1, length);
+        const auto bytes = static_cast<size_t>(length) * sizeof(float);
+        if (stream.getNumBytesRemaining() < static_cast<ssize_t>(bytes)
+            || !stream.read(sample->audio.getWritePointer(0), bytes))
+            return;
+
+        for (int i = 0; i < length; ++i)
+            if (!std::isfinite(sample->audio.getSample(0, i)))
+                return;
+
+        restored[static_cast<size_t>(pad)] = std::move(sample);
+        ++requiredSlots;
+    }
+
+    if (stream.getNumBytesRemaining() != 0 || samplePool.size() + requiredSlots > maxRetainedSamples)
+        return;
+
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        auto& sample = restored[static_cast<size_t>(pad)];
+        if (sample == nullptr)
+        {
+            padSamplePointers[static_cast<size_t>(pad)].store(nullptr, std::memory_order_release);
+            continue;
+        }
+
+        const auto* pointer = sample.get();
+        samplePool.push_back(std::move(sample));
+        padSamplePointers[static_cast<size_t>(pad)].store(pointer, std::memory_order_release);
+    }
+}
+
 void CrayLdrDrumkitCloneAudioProcessor::prepareToPlay(double sampleRate, int)
 {
     currentSampleRate = juce::jmax(8000.0, sampleRate);
