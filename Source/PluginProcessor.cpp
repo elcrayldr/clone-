@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "DrumkitOnsetDetector.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -288,50 +289,50 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
     const int frameSize = juce::jmax(1, static_cast<int>(reader->sampleRate * 0.005));
     const int frameCount = (totalSamples + frameSize - 1) / frameSize;
     std::vector<float> energy(static_cast<size_t>(frameCount), 0.0f);
+    std::vector<float> highBandEnergy(static_cast<size_t>(frameCount), 0.0f);
 
     for (int frame = 0; frame < frameCount; ++frame)
     {
         const int begin = frame * frameSize;
         const int end = juce::jmin(begin + frameSize, totalSamples);
         double sumSquares = 0.0;
+        double highSquares = 0.0;
         int count = 0;
+        int highCount = 0;
+
         for (int channel = 0; channel < source.getNumChannels(); ++channel)
         {
+            float previous = begin > 0 ? source.getSample(channel, begin - 1) : 0.0f;
             for (int sample = begin; sample < end; ++sample)
             {
-                const double value = source.getSample(channel, sample);
-                sumSquares += value * value;
+                const float value = source.getSample(channel, sample);
+                sumSquares += static_cast<double>(value) * value;
+                const float difference = value - previous;
+                highSquares += static_cast<double>(difference) * difference;
+                previous = value;
                 ++count;
+                ++highCount;
             }
         }
+
         energy[static_cast<size_t>(frame)] = count > 0
             ? static_cast<float>(std::sqrt(sumSquares / static_cast<double>(count))) : 0.0f;
+        highBandEnergy[static_cast<size_t>(frame)] = highCount > 0
+            ? static_cast<float>(std::sqrt(highSquares / static_cast<double>(highCount))) : 0.0f;
     }
 
     const float maxEnergy = *std::max_element(energy.begin(), energy.end());
-    if (maxEnergy < 0.001f)
+    if (maxEnergy < 0.0001f)
     {
-        errorMessage = "The file is silent or its level is too low for prototype transient detection.";
+        errorMessage = "The file is silent or its level is too low for transient detection.";
         return 0;
     }
 
-    const float threshold = juce::jmax(0.002f, maxEnergy * 0.085f);
-    const int refractoryFrames = juce::jmax(1, static_cast<int>(0.075 * reader->sampleRate / frameSize));
+    const auto detected = crayldr::detectOnsets(energy, highBandEnergy, frameSize, reader->sampleRate);
     std::vector<std::pair<int, float>> onsets;
-    int lastOnsetFrame = -refractoryFrames;
-
-    for (int frame = 1; frame + 1 < frameCount; ++frame)
-    {
-        const float current = energy[static_cast<size_t>(frame)];
-        if (current > threshold
-            && current >= energy[static_cast<size_t>(frame - 1)]
-            && current > energy[static_cast<size_t>(frame + 1)]
-            && frame - lastOnsetFrame >= refractoryFrames)
-        {
-            onsets.emplace_back(frame * frameSize, current);
-            lastOnsetFrame = frame;
-        }
-    }
+    onsets.reserve(detected.size());
+    for (const auto& onset : detected)
+        onsets.emplace_back(onset.samplePosition, onset.strength);
 
     if (onsets.empty())
     {
@@ -422,7 +423,7 @@ void CrayLdrDrumkitCloneAudioProcessor::importAudioFileAsync(
 }
 
 bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
-    const juce::File& directory, juce::String& errorMessage) const
+    const juce::File& directory, juce::String& errorMessage)
 {
     std::lock_guard<std::mutex> lock(importMutex);
     errorMessage.clear();
