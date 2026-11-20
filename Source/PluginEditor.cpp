@@ -3,7 +3,7 @@
 CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor(CrayLdrDrumkitCloneAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
-    setSize(820, 590);
+    setSize(900, 680);
     title.setText("CRAY LDR  /  DRUMKIT CLONE", juce::dontSendNotification);
     title.setFont(juce::Font(juce::FontOptions(25.0f, juce::Font::bold)));
     title.setColour(juce::Label::textColourId, juce::Colour(0xffffc928));
@@ -61,6 +61,64 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
             });
     };
     addAndMakeVisible(exportButton);
+    exportMidiButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff454545));
+    exportMidiButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    exportMidiButton.onClick = [this]
+    {
+        midiChooser = std::make_unique<juce::FileChooser>(
+            "Export 16-step MIDI pattern", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                .getChildFile("CRAY_LDR_Drumkit_Pattern.mid"), "*.mid");
+        midiChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)
+            {
+                if (safeThis == nullptr)
+                    return;
+                auto file = chooser.getResult();
+                if (file == juce::File{})
+                    return;
+                if (!file.hasFileExtension(".mid"))
+                    file = file.withFileExtension("mid");
+                juce::String error;
+                if (safeThis->audioProcessor.exportMidiPattern(file, error))
+                    safeThis->status.setText("MIDI EXPORTED: " + file.getFileName(), juce::dontSendNotification);
+                else
+                    safeThis->status.setText("MIDI EXPORT FAILED: " + error, juce::dontSendNotification);
+            });
+    };
+    addAndMakeVisible(exportMidiButton);
+
+    patternLabel.setText("16-STEP PATTERN  /  EDIT SELECTED PAD", juce::dontSendNotification);
+    patternLabel.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
+    patternLabel.setColour(juce::Label::textColourId, juce::Colour(0xffbdbdbd));
+    addAndMakeVisible(patternLabel);
+
+    tempoLabel.setText("BPM", juce::dontSendNotification);
+    tempoLabel.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
+    tempoLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible(tempoLabel);
+
+    tempoSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    tempoSlider.setRange(40.0, 300.0, 1.0);
+    tempoSlider.setValue(audioProcessor.getPatternTempo(), juce::dontSendNotification);
+    tempoSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 48, 20);
+    tempoSlider.onValueChange = [this] { audioProcessor.setPatternTempo(static_cast<float>(tempoSlider.getValue())); };
+    addAndMakeVisible(tempoSlider);
+
+    for (int step = 0; step < static_cast<int>(stepButtons.size()); ++step)
+    {
+        stepButtons[static_cast<size_t>(step)] = std::make_unique<juce::ToggleButton>(juce::String(step + 1));
+        auto& button = *stepButtons[static_cast<size_t>(step)];
+        button.setClickingTogglesState(true);
+        button.setColour(juce::ToggleButton::tickColourId, juce::Colour(0xffffc928));
+        button.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+        button.setToggleState(audioProcessor.getPatternStep(selectedPad, step), juce::dontSendNotification);
+        button.onClick = [this, step]
+        {
+            audioProcessor.setPatternStep(selectedPad, step, stepButtons[static_cast<size_t>(step)]->getToggleState());
+        };
+        addAndMakeVisible(button);
+    }
+
 
     subtitle.setText("64-PAD MIDI ENGINE  |  DEVELOPMENT BUILD  |  NOTES 36-99", juce::dontSendNotification);
     subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
@@ -92,6 +150,9 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
             selection.setText("SELECTED: PAD " + juce::String(i + 1).paddedLeft('0', 2)
                 + "  /  MIDI NOTE " + juce::String(CrayLdrDrumkitCloneAudioProcessor::firstMidiNote + i),
                 juce::dontSendNotification);
+            for (int step = 0; step < static_cast<int>(stepButtons.size()); ++step)
+                stepButtons[static_cast<size_t>(step)]->setToggleState(
+                    audioProcessor.getPatternStep(selectedPad, step), juce::dontSendNotification);
         };
         addAndMakeVisible(button);
     }
@@ -110,15 +171,32 @@ void CrayLdrDrumkitCloneAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(38);
-    title.setBounds(header.removeFromLeft(490));
-    exportButton.setBounds(header.removeFromRight(125));
-    header.removeFromRight(8);
-    importButton.setBounds(header.removeFromRight(140));
+    title.setBounds(header.removeFromLeft(390));
+    exportMidiButton.setBounds(header.removeFromRight(112));
+    header.removeFromRight(7);
+    exportButton.setBounds(header.removeFromRight(112));
+    header.removeFromRight(7);
+    importButton.setBounds(header.removeFromRight(132));
+
     subtitle.setBounds(area.removeFromTop(28));
     area.removeFromTop(8);
     selection.setBounds(area.removeFromTop(24));
     status.setBounds(area.removeFromTop(20));
     area.removeFromTop(8);
+
+    auto patternArea = area.removeFromBottom(68);
+    area.removeFromBottom(8);
+    auto patternHeader = patternArea.removeFromTop(22);
+    patternLabel.setBounds(patternHeader.removeFromLeft(300));
+    tempoLabel.setBounds(patternHeader.removeFromRight(36));
+    tempoSlider.setBounds(patternHeader.removeFromRight(150));
+
+    constexpr int stepGap = 4;
+    const int stepWidth = (patternArea.getWidth() - stepGap * 15) / 16;
+    for (int step = 0; step < static_cast<int>(stepButtons.size()); ++step)
+        stepButtons[static_cast<size_t>(step)]->setBounds(
+            patternArea.getX() + step * (stepWidth + stepGap),
+            patternArea.getY() + 2, stepWidth, patternArea.getHeight() - 2);
 
     constexpr int columns = 8;
     constexpr int rows = 8;
