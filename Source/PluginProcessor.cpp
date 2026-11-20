@@ -117,7 +117,7 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
         for (int pad = 0; pad < padCount; ++pad)
             for (int step = 0; step < patternStepCount; ++step)
             {
-                const auto value = stream.readByte();
+                const auto value = static_cast<std::uint8_t>(stream.readByte());
                 if (value > 1)
                     return;
                 restoredPattern[static_cast<size_t>(pad)][static_cast<size_t>(step)] = value;
