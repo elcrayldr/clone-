@@ -18,6 +18,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore JUCE and CMake build cache
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: ${{ runner.os }}-vs2022-juce806-${{ hashFiles('CMakeLists.txt', 'Source/**', 'Tests/**') }}
+          restore-keys: |
+            ${{ runner.os }}-vs2022-juce806-
+
       - name: Configure
         run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
 
