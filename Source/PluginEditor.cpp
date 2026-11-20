@@ -31,7 +31,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
                 status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
         });
     };
-    addAndMakeVisible(importButton);
+    addAndMakeVisible(importButton);\n\n    exportButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff333333));\n    exportButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);\n    exportButton.onClick = [this]\n    {\n        exportChooser = std::make_unique<juce::FileChooser>("Export drum kit", juce::File{}, juce::FileBrowserComponent::canSelectDirectories);\n        exportChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,\n            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)\n            {\n                if (safeThis == nullptr) return;\n                const auto folder = chooser.getResult();\n                if (folder == juce::File{}) return;\n                juce::String error;\n                if (safeThis->audioProcessor.exportKitToDirectory(folder, error))\n                    safeThis->status.setText("KIT EXPORTED: " + folder.getFullPathName(), juce::dontSendNotification);\n                else\n                    safeThis->status.setText("EXPORT FAILED: " + error, juce::dontSendNotification);\n            });\n    };\n    addAndMakeVisible(exportButton);
 
     subtitle.setText("64-PAD MIDI ENGINE  |  DEVELOPMENT BUILD  |  NOTES 36-99", juce::dontSendNotification);
     subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
@@ -82,7 +82,7 @@ void CrayLdrDrumkitCloneAudioProcessorEditor::resized()
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(38);
     title.setBounds(header.removeFromLeft(490));
-    importButton.setBounds(header.removeFromRight(150));
+    exportButton.setBounds(header.removeFromRight(125));\n    header.removeFromRight(8);\n    importButton.setBounds(header.removeFromRight(140));
     subtitle.setBounds(area.removeFromTop(28));
     area.removeFromTop(8);
     selection.setBounds(area.removeFromTop(24));
