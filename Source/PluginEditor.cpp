@@ -9,6 +9,30 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     title.setColour(juce::Label::textColourId, juce::Colour(0xffffc928));
     addAndMakeVisible(title);
 
+    importButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffb88b12));
+    importButton.setColour(juce::TextButton::textColourOffId, juce::Colours::black);
+    importButton.onClick = [this]
+    {
+        fileChooser = std::make_unique<juce::FileChooser>(
+            "Import a song or instrumental", juce::File{}, "*.wav;*.aif;*.aiff;*.mp3");
+        const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+        fileChooser->launchAsync(flags, [this](const juce::FileChooser& chooser)
+        {
+            const auto file = chooser.getResult();
+            if (file == juce::File{})
+                return;
+
+            status.setText("ANALYSING: " + file.getFileName(), juce::dontSendNotification);
+            juce::String error;
+            const int count = audioProcessor.importAudioFile(file, error);
+            if (count > 0)
+                status.setText("IMPORTED " + juce::String(count) + " TRANSIENT SEGMENTS  |  " + file.getFileName(), juce::dontSendNotification);
+            else
+                status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
+        });
+    };
+    addAndMakeVisible(importButton);
+
     subtitle.setText("64-PAD MIDI ENGINE  |  DEVELOPMENT BUILD  |  NOTES 36-99", juce::dontSendNotification);
     subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
     subtitle.setColour(juce::Label::textColourId, juce::Colour(0xffa7a7a7));
@@ -18,6 +42,11 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     selection.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
     selection.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(selection);
+
+    status.setText("IMPORT: no audio source loaded", juce::dontSendNotification);
+    status.setFont(juce::Font(juce::FontOptions(11.0f)));
+    status.setColour(juce::Label::textColourId, juce::Colour(0xffb7b7b7));
+    addAndMakeVisible(status);
 
     for (int i = 0; i < static_cast<int>(padButtons.size()); ++i)
     {
@@ -51,11 +80,14 @@ void CrayLdrDrumkitCloneAudioProcessorEditor::paint(juce::Graphics& g)
 void CrayLdrDrumkitCloneAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(20);
-    title.setBounds(area.removeFromTop(38));
+    auto header = area.removeFromTop(38);
+    title.setBounds(header.removeFromLeft(490));
+    importButton.setBounds(header.removeFromRight(150));
     subtitle.setBounds(area.removeFromTop(28));
-    area.removeFromTop(12);
-    selection.setBounds(area.removeFromTop(28));
-    area.removeFromTop(12);
+    area.removeFromTop(8);
+    selection.setBounds(area.removeFromTop(24));
+    status.setBounds(area.removeFromTop(20));
+    area.removeFromTop(8);
 
     constexpr int columns = 8;
     constexpr int rows = 8;
