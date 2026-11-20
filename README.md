@@ -12,7 +12,7 @@ Implemented in the current development branch:
 - Windows GitHub Actions build workflow.
 - 64 pads mapped to MIDI notes 36–99.
 - Procedural drum voice fallback for empty pads.
-- WAV, AIFF and MP3 file decoding through JUCE audio formats.
+- WAV and AIFF file decoding through JUCE audio formats. MP3 support remains planned.
 - First-pass 5 ms energy-peak transient detection with a 75 ms refractory interval.
 - Up to 64 detected segments loaded into pads in chronological order.
 - Sample playback from GUI pad clicks and MIDI note-on messages.
