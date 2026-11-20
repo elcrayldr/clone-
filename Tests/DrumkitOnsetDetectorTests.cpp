@@ -1,7 +1,7 @@
 #include "DrumkitOnsetDetector.h"
 #include <cassert>
 #include <cmath>
-#include <iostream>
+#include <iostream>\n#include <limits>
 #include <vector>
 
 int main()
@@ -36,6 +36,15 @@ int main()
     const auto invalid = crayldr::detectOnsets(energy, high, 0, 44100.0);
     if (!invalid.empty()) return 6;
 
+    const auto invalidRate = crayldr::detectOnsets(energy, high, 220,
+        std::numeric_limits<double>::quiet_NaN());
+    if (!invalidRate.empty()) return 7;
+
+    auto corruptEnergy = energy;
+    corruptEnergy[12] = std::numeric_limits<float>::quiet_NaN();
+    const auto invalidAudio = crayldr::detectOnsets(corruptEnergy, high, 220, 44100.0);
+    if (!invalidAudio.empty()) return 8;
+
     std::vector<float> closeEnergy(100, 0.004f);
     std::vector<float> closeHigh(100, 0.002f);
     closeEnergy[20] = 0.50f;
@@ -47,6 +56,6 @@ int main()
     const auto refractory = crayldr::detectOnsets(closeEnergy, closeHigh, 220, 44100.0);
     if (refractory.size() != 1 || refractory.front().samplePosition != 27 * 220) return 7;
 
-    std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, refractory selection, silence and invalid input.\n";
+    std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, refractory selection, silence and invalid input, non-finite data and refractory selection.\n";
     return 0;
 }
