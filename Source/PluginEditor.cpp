@@ -16,20 +16,29 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         fileChooser = std::make_unique<juce::FileChooser>(
             "Import a song or instrumental", juce::File{}, "*.wav;*.aif;*.aiff");
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        fileChooser->launchAsync(flags, [this](const juce::FileChooser& chooser)
-        {
-            const auto file = chooser.getResult();
-            if (file == juce::File{})
-                return;
+        fileChooser->launchAsync(flags,
+            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)
+            {
+                if (safeThis == nullptr)
+                    return;
+                const auto file = chooser.getResult();
+                if (file == juce::File{})
+                    return;
 
-            status.setText("ANALYSING: " + file.getFileName(), juce::dontSendNotification);
-            juce::String error;
-            const int count = audioProcessor.importAudioFile(file, error);
-            if (count > 0)
-                status.setText("IMPORTED " + juce::String(count) + " TRANSIENT SEGMENTS  |  " + file.getFileName(), juce::dontSendNotification);
-            else
-                status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
-        });
+                safeThis->status.setText("ANALYSING IN BACKGROUND: " + file.getFileName(), juce::dontSendNotification);
+                safeThis->importButton.setEnabled(false);
+                safeThis->audioProcessor.importAudioFileAsync(file,
+                    [safeThis, fileName = file.getFileName()](int count, juce::String error)
+                    {
+                        if (safeThis == nullptr)
+                            return;
+                        safeThis->importButton.setEnabled(true);
+                        if (count > 0)
+                            safeThis->status.setText("IMPORTED " + juce::String(count) + " SLICES  |  " + fileName, juce::dontSendNotification);
+                        else
+                            safeThis->status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
+                    });
+            });
     };
     addAndMakeVisible(importButton);
 
