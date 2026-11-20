@@ -30,7 +30,7 @@ void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& d
     std::lock_guard<std::mutex> lock(importMutex);
     juce::MemoryOutputStream stream(destData, false);
     stream.writeInt(0x434C4452); // CLDR
-    stream.writeInt(1);          // state format version
+    stream.writeInt(2);          // state format version
     stream.writeInt(padCount);
 
     for (int pad = 0; pad < padCount; ++pad)
@@ -44,6 +44,11 @@ void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& d
             stream.write(sample->audio.getReadPointer(0), static_cast<size_t>(length) * sizeof(float));
         }
     }
+
+    stream.writeFloat(patternTempo.load(std::memory_order_acquire));
+    for (int pad = 0; pad < padCount; ++pad)
+        for (int step = 0; step < patternStepCount; ++step)
+            stream.writeByte(patternSteps[static_cast<size_t>(pad)][static_cast<size_t>(step)].load(std::memory_order_acquire));
 }
 
 void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
@@ -53,7 +58,10 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
 
     std::lock_guard<std::mutex> lock(importMutex);
     juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
-    if (stream.readInt() != 0x434C4452 || stream.readInt() != 1 || stream.readInt() != padCount)
+    const int magic = stream.readInt();
+    const int version = stream.readInt();
+    const int storedPadCount = stream.readInt();
+    if (magic != 0x434C4452 || (version != 1 && version != 2) || storedPadCount != padCount)
         return;
 
     std::array<std::unique_ptr<SampleData>, padCount> restored {};
@@ -91,6 +99,23 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
         ++requiredSlots;
     }
 
+    float restoredTempo = 120.0f;
+    std::array<std::array<std::uint8_t, patternStepCount>, padCount> restoredPattern {};
+    if (version >= 2)
+    {
+        restoredTempo = stream.readFloat();
+        if (!std::isfinite(restoredTempo) || restoredTempo < 40.0f || restoredTempo > 300.0f)
+            return;
+        for (int pad = 0; pad < padCount; ++pad)
+            for (int step = 0; step < patternStepCount; ++step)
+            {
+                const auto value = stream.readByte();
+                if (value > 1)
+                    return;
+                restoredPattern[static_cast<size_t>(pad)][static_cast<size_t>(step)] = value;
+            }
+    }
+
     if (stream.getNumBytesRemaining() != 0 || samplePool.size() + requiredSlots > maxRetainedSamples)
         return;
 
@@ -107,6 +132,12 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
         samplePool.push_back(std::move(sample));
         padSamplePointers[static_cast<size_t>(pad)].store(pointer, std::memory_order_release);
     }
+
+    patternTempo.store(restoredTempo, std::memory_order_release);
+    for (int pad = 0; pad < padCount; ++pad)
+        for (int step = 0; step < patternStepCount; ++step)
+            patternSteps[static_cast<size_t>(pad)][static_cast<size_t>(step)].store(
+                restoredPattern[static_cast<size_t>(pad)][static_cast<size_t>(step)], std::memory_order_release);
 }
 
 void CrayLdrDrumkitCloneAudioProcessor::prepareToPlay(double sampleRate, int)
@@ -472,6 +503,86 @@ bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
     if (exported == 0)
     {
         errorMessage = "There are no imported samples to export.";
+        return false;
+    }
+    return true;
+}
+
+
+void CrayLdrDrumkitCloneAudioProcessor::setPatternStep(int pad, int step, bool enabled) noexcept
+{
+    if (pad >= 0 && pad < padCount && step >= 0 && step < patternStepCount)
+        patternSteps[static_cast<size_t>(pad)][static_cast<size_t>(step)].store(
+            enabled ? 1u : 0u, std::memory_order_release);
+}
+
+bool CrayLdrDrumkitCloneAudioProcessor::getPatternStep(int pad, int step) const noexcept
+{
+    if (pad < 0 || pad >= padCount || step < 0 || step >= patternStepCount)
+        return false;
+    return patternSteps[static_cast<size_t>(pad)][static_cast<size_t>(step)].load(std::memory_order_acquire) != 0;
+}
+
+void CrayLdrDrumkitCloneAudioProcessor::setPatternTempo(float bpm) noexcept
+{
+    if (std::isfinite(bpm))
+        patternTempo.store(juce::jlimit(40.0f, 300.0f, bpm), std::memory_order_release);
+}
+
+float CrayLdrDrumkitCloneAudioProcessor::getPatternTempo() const noexcept
+{
+    return patternTempo.load(std::memory_order_acquire);
+}
+
+bool CrayLdrDrumkitCloneAudioProcessor::exportMidiPattern(
+    const juce::File& file, juce::String& errorMessage) const
+{
+    errorMessage.clear();
+    const float bpm = getPatternTempo();
+    juce::MidiMessageSequence sequence;
+    sequence.addEvent(juce::MidiMessage::tempoMetaEvent(
+        static_cast<int>(std::round(60000000.0 / static_cast<double>(bpm)))), 0.0);
+    sequence.addEvent(juce::MidiMessage::timeSignatureMetaEvent(4, 4), 0.0);
+
+    int eventCount = 0;
+    constexpr double ticksPerSixteenth = 240.0;
+    constexpr double noteLengthTicks = 120.0;
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        for (int step = 0; step < patternStepCount; ++step)
+        {
+            if (!getPatternStep(pad, step))
+                continue;
+
+            const double tick = static_cast<double>(step) * ticksPerSixteenth;
+            const int note = firstMidiNote + pad;
+            sequence.addEvent(juce::MidiMessage::noteOn(1, note, static_cast<juce::uint8>(100)), tick);
+            sequence.addEvent(juce::MidiMessage::noteOff(1, note), tick + noteLengthTicks);
+            ++eventCount;
+        }
+    }
+
+    if (eventCount == 0)
+    {
+        errorMessage = "The 16-step pattern is empty.";
+        return false;
+    }
+
+    sequence.updateMatchedPairs();
+    juce::MidiFile midi;
+    midi.setTicksPerQuarterNote(960);
+    midi.addTrack(sequence);
+
+    juce::FileOutputStream output(file);
+    if (!output.openedOk())
+    {
+        errorMessage = "Could not create MIDI file: " + file.getFileName();
+        return false;
+    }
+
+    if (!midi.writeTo(output))
+    {
+        errorMessage = "Failed while writing the MIDI pattern.";
         return false;
     }
     return true;
