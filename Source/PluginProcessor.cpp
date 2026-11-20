@@ -20,6 +20,9 @@ constexpr juce::int64 maxDecodedAudioSamples = 64ll * 1024ll * 1024ll;
 CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
+    for (auto& pad : patternSteps)
+        for (auto& step : pad)
+            step.store(0, std::memory_order_relaxed);
 }
 
 CrayLdrDrumkitCloneAudioProcessor::~CrayLdrDrumkitCloneAudioProcessor()
@@ -313,13 +316,13 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
         return 0;
     }
 
-    if (reader->sampleRate <= 0.0 || reader->lengthInSamples <= 0
+    if (reader->sampleRate < 8000.0 || reader->sampleRate > 384000.0 || reader->lengthInSamples <= 0
         || static_cast<double>(reader->lengthInSamples) / reader->sampleRate > maxImportSeconds
         || reader->numChannels < 1 || reader->numChannels > 2
         || reader->lengthInSamples > std::numeric_limits<int>::max()
         || reader->lengthInSamples * static_cast<juce::int64>(reader->numChannels) > maxDecodedAudioSamples)
     {
-        errorMessage = "Audio exceeds import limits: maximum 10 minutes, stereo, and 256 MB decoded audio.";
+        errorMessage = "Audio exceeds import limits: 8–384 kHz, mono/stereo, 10 minutes, and 256 MB decoded audio.";
         return 0;
     }
 
