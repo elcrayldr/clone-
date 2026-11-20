@@ -4,6 +4,8 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+#include <vector>
 
 class CrayLdrDrumkitCloneAudioProcessor final : public juce::AudioProcessor
 {
@@ -53,12 +55,15 @@ private:
         int age = 0;
         float velocity = 0.0f;
         std::uint32_t noiseState = 0x1234567u;
-        std::shared_ptr<const SampleData> sample;
+        const SampleData* sample = nullptr;
     };
 
     static constexpr int maxVoices = 32;
     std::array<Voice, maxVoices> voices {};
-    std::array<std::shared_ptr<const SampleData>, padCount> padSamples {};
+    std::array<std::atomic<const SampleData*>, padCount> padSamplePointers {};
+    std::vector<std::unique_ptr<SampleData>> samplePool;
+    std::mutex importMutex;
+    static constexpr size_t maxRetainedSamples = 256;
     std::array<std::atomic<float>, padCount> pendingPadVelocities {};
     double currentSampleRate = 44100.0;
 
