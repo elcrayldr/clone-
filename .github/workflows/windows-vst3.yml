@@ -24,6 +24,9 @@ jobs:
       - name: Build VST3
         run: cmake --build build --config Release --parallel 2
 
+      - name: Run automated tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
       - name: Upload VST3 artifact
         uses: actions/upload-artifact@v4
         with:
