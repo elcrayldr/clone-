@@ -21,10 +21,15 @@ inline std::vector<DetectedOnset> detectOnsets(
 {
     std::vector<DetectedOnset> candidates;
     if (energy.size() < 3 || energy.size() != highBandEnergy.size()
-        || frameSize <= 0 || sampleRate < 8000.0)
+        || frameSize <= 0 || !std::isfinite(sampleRate)
+        || sampleRate < 8000.0 || sampleRate > 384000.0)
         return candidates;
 
     const int frameCount = static_cast<int>(energy.size());
+    for (size_t i = 0; i < energy.size(); ++i)
+        if (!std::isfinite(energy[i]) || !std::isfinite(highBandEnergy[i])
+            || energy[i] < 0.0f || highBandEnergy[i] < 0.0f)
+            return candidates;
     const int localRadius = std::max(2, static_cast<int>(0.12 * sampleRate / frameSize));
     const int refractory = std::max(1, static_cast<int>(0.055 * sampleRate / frameSize));
     std::vector<float> neighbourhood;
