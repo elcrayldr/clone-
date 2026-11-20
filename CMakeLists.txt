@@ -50,3 +50,13 @@ target_link_libraries(CrayLdrDrumkitClone PRIVATE
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(DrumkitOnsetDetectorTests
+        Tests/DrumkitOnsetDetectorTests.cpp
+    )
+    target_compile_features(DrumkitOnsetDetectorTests PRIVATE cxx_std_17)
+    target_include_directories(DrumkitOnsetDetectorTests PRIVATE Source)
+    add_test(NAME DrumkitOnsetDetectorTests COMMAND DrumkitOnsetDetectorTests)
+endif()
