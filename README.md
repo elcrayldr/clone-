@@ -69,9 +69,9 @@ AI separation must not be represented as simple slicing. Model licensing, redist
 - Import analysis currently runs from the editor's file-selection callback; moving decode and detection to a background worker is required before production use.
 - Detection is based on short-window energy peaks, not a trained drum detector.
 - Segments are assigned by time order, not by drum-family classification.
-- No project-state persistence or kit export yet.
+- Plugin state now serializes/restores loaded pad samples in the DAW project; kit-folder export and MIDI pattern export are still pending.
 - The sample player is mono at present.
-- Sample data is retained for the lifetime of the plugin instance to keep audio-thread sample access free of shared-pointer reference-count destruction; imports are capped at 256 retained segments per instance. Restart the plugin to reset this safety limit.
+- Sample data is retained for the lifetime of the plugin instance to keep audio-thread sample access free of reference-count destruction; imports and restored states are capped at 256 retained segments per instance. Restart the plugin to reset this safety limit.
 
 ## Compatibility target
 
