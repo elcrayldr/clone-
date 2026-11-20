@@ -17,6 +17,7 @@ juce_add_plugin(CrayLdrDrumkitClone
     PLUGIN_MANUFACTURER_CODE Cray
     PLUGIN_CODE Drk1
     PRODUCT_NAME "CRAY LDR - DRUMKIT CLONE"
+    VST3_CATEGORIES Instrument|Drum
     DESCRIPTION "Drum kit extraction and sampler - development build"
     FORMATS VST3
     IS_SYNTH TRUE
@@ -40,6 +41,10 @@ target_compile_definitions(CrayLdrDrumkitClone PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
 )
+
+if(MSVC)
+    target_compile_options(CrayLdrDrumkitClone PRIVATE /utf-8)
+endif()
 
 target_link_libraries(CrayLdrDrumkitClone PRIVATE
     juce::juce_audio_utils
