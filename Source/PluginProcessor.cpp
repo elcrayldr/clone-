@@ -3,6 +3,7 @@
 #include "DrumkitOnsetDetector.h"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 namespace
@@ -13,6 +14,7 @@ constexpr double maxImportSeconds = 600.0;
 constexpr double maxSampleSeconds = 1.25;
 constexpr size_t maxStateBytes = 256u * 1024u * 1024u;
 constexpr size_t maxStateSamples = 32u * 1024u * 1024u;
+constexpr juce::int64 maxDecodedAudioSamples = 64ll * 1024ll * 1024ll;
 }
 
 CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
@@ -312,9 +314,12 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
     }
 
     if (reader->sampleRate <= 0.0 || reader->lengthInSamples <= 0
-        || static_cast<double>(reader->lengthInSamples) / reader->sampleRate > maxImportSeconds)
+        || static_cast<double>(reader->lengthInSamples) / reader->sampleRate > maxImportSeconds
+        || reader->numChannels < 1 || reader->numChannels > 2
+        || reader->lengthInSamples > std::numeric_limits<int>::max()
+        || reader->lengthInSamples * static_cast<juce::int64>(reader->numChannels) > maxDecodedAudioSamples)
     {
-        errorMessage = "Audio duration is invalid or exceeds the 10-minute prototype limit.";
+        errorMessage = "Audio exceeds import limits: maximum 10 minutes, stereo, and 256 MB decoded audio.";
         return 0;
     }
 
