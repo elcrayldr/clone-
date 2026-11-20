@@ -84,6 +84,17 @@ GitHub Actions performs the same Windows x64 build and runs the automated CTest 
 6. Sample editing and pad management
 7. MIDI sequencer and WAV/MIDI kit export
 
+## FL Studio installation and routing
+
+The Drumkit Clone is built as a **VST3 instrument**, not a mixer insert effect.
+
+1. Extract the release ZIP once. The folder `CRAY LDR - DRUMKIT CLONE.vst3` must be directly inside the Windows VST3 directory:
+   `C:\\Program Files\\Common Files\\VST3\\`
+2. In FL Studio, open **Options → Manage plugins** and run **Find plugins**.
+3. Load the plugin from the instrument/plugin list in the Channel Rack. Do not try to insert it as an effect on a Mixer track.
+
+Stutter Lab and RiserLab are effects; those belong in Mixer effect slots. This distinction matters because the VST3 component categories are different.
+
 ## Compatibility target
 
 FL Studio 26 and Cubase 13 on Windows x64. Compatibility is not claimed until tested in both hosts. DAW validation is deliberately deferred until the repository-side build and automated tests are clean.
