@@ -71,6 +71,7 @@ AI separation must not be represented as simple slicing. Model licensing, redist
 - Segments are assigned by time order, not by drum-family classification.
 - No project-state persistence or kit export yet.
 - The sample player is mono at present.
+- Sample data is retained for the lifetime of the plugin instance to keep audio-thread sample access free of shared-pointer reference-count destruction; imports are capped at 256 retained segments per instance. Restart the plugin to reset this safety limit.
 
 ## Compatibility target
 
