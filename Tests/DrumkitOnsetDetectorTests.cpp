@@ -24,17 +24,17 @@ int main()
     addHit(250, 0.68f);
 
     const auto detected = crayldr::detectOnsets(energy, high, 220, 44100.0);
-    assert(detected.size() == 3);
-    assert(detected[0].samplePosition == 40 * 220);
-    assert(detected[1].samplePosition == 120 * 220);
-    assert(detected[2].samplePosition == 250 * 220);
+    if (detected.size() != 3) return 1;
+    if (detected[0].samplePosition != 40 * 220) return 2;
+    if (detected[1].samplePosition != 120 * 220) return 3;
+    if (detected[2].samplePosition != 250 * 220) return 4;
 
     const auto silence = crayldr::detectOnsets(std::vector<float>(64, 0.0f),
                                                std::vector<float>(64, 0.0f), 220, 44100.0);
-    assert(silence.empty());
+    if (!silence.empty()) return 5;
 
     const auto invalid = crayldr::detectOnsets(energy, high, 0, 44100.0);
-    assert(invalid.empty());
+    if (!invalid.empty()) return 6;
 
     std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, silence, invalid input.\n";
     return 0;
