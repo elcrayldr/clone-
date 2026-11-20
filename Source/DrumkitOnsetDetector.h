@@ -61,16 +61,18 @@ inline std::vector<DetectedOnset> detectOnsets(
 
     std::vector<DetectedOnset> selected;
     selected.reserve(candidates.size());
+    std::vector<unsigned char> blocked(static_cast<size_t>(frameCount), 0);
     for (const auto& candidate : candidates)
     {
         const int frame = candidate.samplePosition / frameSize;
-        const bool tooClose = std::any_of(selected.begin(), selected.end(),
-            [frame, refractory, frameSize](const DetectedOnset& existing)
-            {
-                return std::abs(existing.samplePosition / frameSize - frame) < refractory;
-            });
-        if (!tooClose)
-            selected.push_back(candidate);
+        if (blocked[static_cast<size_t>(frame)] != 0)
+            continue;
+
+        selected.push_back(candidate);
+        const int firstBlocked = std::max(0, frame - refractory + 1);
+        const int lastBlocked = std::min(frameCount - 1, frame + refractory - 1);
+        for (int neighbour = firstBlocked; neighbour <= lastBlocked; ++neighbour)
+            blocked[static_cast<size_t>(neighbour)] = 1;
     }
 
     std::sort(selected.begin(), selected.end(),
