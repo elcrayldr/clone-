@@ -31,7 +31,27 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
                 status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
         });
     };
-    addAndMakeVisible(importButton);\n\n    exportButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff333333));\n    exportButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);\n    exportButton.onClick = [this]\n    {\n        exportChooser = std::make_unique<juce::FileChooser>("Export drum kit", juce::File{}, juce::FileBrowserComponent::canSelectDirectories);\n        exportChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,\n            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)\n            {\n                if (safeThis == nullptr) return;\n                const auto folder = chooser.getResult();\n                if (folder == juce::File{}) return;\n                juce::String error;\n                if (safeThis->audioProcessor.exportKitToDirectory(folder, error))\n                    safeThis->status.setText("KIT EXPORTED: " + folder.getFullPathName(), juce::dontSendNotification);\n                else\n                    safeThis->status.setText("EXPORT FAILED: " + error, juce::dontSendNotification);\n            });\n    };\n    addAndMakeVisible(exportButton);
+    addAndMakeVisible(importButton);
+
+    exportButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff333333));
+    exportButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    exportButton.onClick = [this]
+    {
+        exportChooser = std::make_unique<juce::FileChooser>("Export drum kit", juce::File{}, juce::FileBrowserComponent::canSelectDirectories);
+        exportChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)
+            {
+                if (safeThis == nullptr) return;
+                const auto folder = chooser.getResult();
+                if (folder == juce::File{}) return;
+                juce::String error;
+                if (safeThis->audioProcessor.exportKitToDirectory(folder, error))
+                    safeThis->status.setText("KIT EXPORTED: " + folder.getFullPathName(), juce::dontSendNotification);
+                else
+                    safeThis->status.setText("EXPORT FAILED: " + error, juce::dontSendNotification);
+            });
+    };
+    addAndMakeVisible(exportButton);
 
     subtitle.setText("64-PAD MIDI ENGINE  |  DEVELOPMENT BUILD  |  NOTES 36-99", juce::dontSendNotification);
     subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
@@ -82,7 +102,9 @@ void CrayLdrDrumkitCloneAudioProcessorEditor::resized()
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(38);
     title.setBounds(header.removeFromLeft(490));
-    exportButton.setBounds(header.removeFromRight(125));\n    header.removeFromRight(8);\n    importButton.setBounds(header.removeFromRight(140));
+    exportButton.setBounds(header.removeFromRight(125));
+    header.removeFromRight(8);
+    importButton.setBounds(header.removeFromRight(140));
     subtitle.setBounds(area.removeFromTop(28));
     area.removeFromTop(8);
     selection.setBounds(area.removeFromTop(24));
