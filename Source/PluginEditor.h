@@ -17,6 +17,9 @@ private:
     juce::Label title;
     juce::Label subtitle;
     juce::Label selection;
+    juce::Label status;
+    juce::TextButton importButton { "IMPORT AUDIO" };
+    std::unique_ptr<juce::FileChooser> fileChooser;
     std::array<std::unique_ptr<juce::TextButton>, 64> padButtons;
     int selectedPad = 0;
 
