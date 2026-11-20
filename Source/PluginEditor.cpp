@@ -35,7 +35,12 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
                         return;
                     safeThis->importButton.setEnabled(true);
                     if (count > 0)
+                    {
                         safeThis->status.setText("IMPORTED " + juce::String(count) + " SLICES  |  " + fileName, juce::dontSendNotification);
+                        for (int pad = 0; pad < static_cast<int>(safeThis->padButtons.size()); ++pad)
+                            safeThis->padButtons[static_cast<size_t>(pad)]->setColour(juce::TextButton::buttonColourId,
+                                safeThis->audioProcessor.isPadLoaded(pad) ? juce::Colour(0xff72550d) : juce::Colour(0xff292929));
+                    }
                     else
                         safeThis->status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
                 });
@@ -152,7 +157,8 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
             juce::String(i + 1).paddedLeft('0', 2));
         auto& button = *padButtons[static_cast<size_t>(i)];
         button.setClickingTogglesState(false);
-        button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff292929));
+        button.setColour(juce::TextButton::buttonColourId,
+            audioProcessor.isPadLoaded(i) ? juce::Colour(0xff72550d) : juce::Colour(0xff292929));
         button.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffb88b12));
         button.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
         button.onClick = [this, i]
