@@ -103,6 +103,9 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
     std::array<std::array<std::uint8_t, patternStepCount>, padCount> restoredPattern {};
     if (version >= 2)
     {
+        constexpr size_t patternStateBytes = sizeof(float) + static_cast<size_t>(padCount * patternStepCount);
+        if (stream.getNumBytesRemaining() < static_cast<juce::int64>(patternStateBytes))
+            return;
         restoredTempo = stream.readFloat();
         if (!std::isfinite(restoredTempo) || restoredTempo < 40.0f || restoredTempo > 300.0f)
             return;
