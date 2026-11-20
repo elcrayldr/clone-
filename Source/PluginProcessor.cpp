@@ -19,7 +19,12 @@ CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
 {
 }
 
-CrayLdrDrumkitCloneAudioProcessor::~CrayLdrDrumkitCloneAudioProcessor()\n{\n    importWorkers.removeAllJobs(true, -1);\n}\n\nvoid CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+CrayLdrDrumkitCloneAudioProcessor::~CrayLdrDrumkitCloneAudioProcessor()
+{
+    importWorkers.removeAllJobs(true, -1);
+}
+
+void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     std::lock_guard<std::mutex> lock(importMutex);
     juce::MemoryOutputStream stream(destData, false);
@@ -51,7 +56,8 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
         return;
 
     std::array<std::unique_ptr<SampleData>, padCount> restored {};
-    size_t requiredSlots = 0;\n    size_t totalStateSamples = 0;
+    size_t requiredSlots = 0;
+    size_t totalStateSamples = 0;
     for (int pad = 0; pad < padCount; ++pad)
     {
         const int length = stream.readInt();
