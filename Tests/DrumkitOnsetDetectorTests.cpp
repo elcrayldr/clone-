@@ -1,7 +1,8 @@
 #include "DrumkitOnsetDetector.h"
 #include <cassert>
 #include <cmath>
-#include <iostream>\n#include <limits>
+#include <iostream>
+#include <limits>
 #include <vector>
 
 int main()
