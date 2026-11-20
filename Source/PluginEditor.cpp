@@ -14,7 +14,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     importButton.onClick = [this]
     {
         fileChooser = std::make_unique<juce::FileChooser>(
-            "Import a song or instrumental", juce::File{}, "*.wav;*.aif;*.aiff;*.mp3");
+            "Import a song or instrumental", juce::File{}, "*.wav;*.aif;*.aiff");
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
         fileChooser->launchAsync(flags, [this](const juce::FileChooser& chooser)
         {
