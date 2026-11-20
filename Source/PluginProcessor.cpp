@@ -1,11 +1,15 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace
 {
 constexpr float twoPi = 6.2831853071795864769f;
 constexpr float silenceThreshold = 0.00001f;
+constexpr double maxImportSeconds = 600.0;
+constexpr double maxSampleSeconds = 1.25;
 }
 
 CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
@@ -23,13 +27,19 @@ void CrayLdrDrumkitCloneAudioProcessor::prepareToPlay(double sampleRate, int)
 void CrayLdrDrumkitCloneAudioProcessor::releaseResources()
 {
     for (auto& voice : voices)
-        voice.active = false;
+        voice = {};
 }
 
 bool CrayLdrDrumkitCloneAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     const auto output = layouts.getMainOutputChannelSet();
     return output == juce::AudioChannelSet::mono() || output == juce::AudioChannelSet::stereo();
+}
+
+void CrayLdrDrumkitCloneAudioProcessor::triggerPad(int padIndex, float velocity) noexcept
+{
+    if (padIndex >= 0 && padIndex < padCount)
+        pendingPadVelocities[static_cast<size_t>(padIndex)].store(juce::jlimit(0.0f, 1.0f, velocity), std::memory_order_release);
 }
 
 void CrayLdrDrumkitCloneAudioProcessor::startVoice(int midiNote, float velocity) noexcept
@@ -54,12 +64,35 @@ void CrayLdrDrumkitCloneAudioProcessor::startVoice(int midiNote, float velocity)
     target->note = midiNote;
     target->velocity = juce::jlimit(0.0f, 1.0f, velocity);
     target->noiseState = 0x9e3779b9u ^ static_cast<std::uint32_t>(midiNote * 7919 + midiNote * 17);
+    const int pad = midiNote - firstMidiNote;
+    target->sample = std::atomic_load_explicit(&padSamples[static_cast<size_t>(pad)], std::memory_order_acquire);
 }
 
 float CrayLdrDrumkitCloneAudioProcessor::renderVoice(Voice& voice) noexcept
 {
     if (!voice.active)
         return 0.0f;
+
+    if (voice.sample != nullptr)
+    {
+        const auto& audio = voice.sample->audio;
+        const double sourcePosition = static_cast<double>(voice.age) * voice.sample->sampleRate / currentSampleRate;
+        const int index0 = static_cast<int>(sourcePosition);
+        if (index0 >= audio.getNumSamples())
+        {
+            voice.active = false;
+            voice.sample.reset();
+            return 0.0f;
+        }
+
+        const int index1 = juce::jmin(index0 + 1, audio.getNumSamples() - 1);
+        const float fraction = static_cast<float>(sourcePosition - static_cast<double>(index0));
+        const float a = audio.getSample(0, index0);
+        const float b = audio.getSample(0, index1);
+        const float value = a + (b - a) * fraction;
+        ++voice.age;
+        return value * voice.velocity;
+    }
 
     const int pad = voice.note - firstMidiNote;
     const int family = pad / 8;
@@ -121,16 +154,153 @@ float CrayLdrDrumkitCloneAudioProcessor::renderVoice(Voice& voice) noexcept
 
     ++voice.age;
     const float maxDuration = family == 3 ? 0.22f : (family == 4 || family == 7 ? 1.5f : 0.9f);
-    if (t >= maxDuration || std::abs(sample) < silenceThreshold && t > 0.08f)
+    if (t >= maxDuration || (std::abs(sample) < silenceThreshold && t > 0.08f))
         voice.active = false;
 
     return sample * velocity * 0.22f;
 }
 
-void CrayLdrDrumkitCloneAudioProcessor::triggerPad(int padIndex, float velocity) noexcept
+int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, juce::String& errorMessage)
 {
-    if (padIndex >= 0 && padIndex < padCount)
-        pendingPadVelocities[static_cast<size_t>(padIndex)].store(juce::jlimit(0.0f, 1.0f, velocity), std::memory_order_release);
+    errorMessage.clear();
+    if (!file.existsAsFile())
+    {
+        errorMessage = "The selected audio file does not exist.";
+        return 0;
+    }
+
+    juce::AudioFormatManager formats;
+    formats.registerBasicFormats();
+    std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(file));
+    if (reader == nullptr)
+    {
+        errorMessage = "Unsupported or unreadable audio format. Use WAV, AIFF or MP3.";
+        return 0;
+    }
+
+    if (reader->sampleRate <= 0.0 || reader->lengthInSamples <= 0
+        || static_cast<double>(reader->lengthInSamples) / reader->sampleRate > maxImportSeconds)
+    {
+        errorMessage = "Audio duration is invalid or exceeds the 10-minute prototype limit.";
+        return 0;
+    }
+
+    const int totalSamples = static_cast<int>(reader->lengthInSamples);
+    juce::AudioBuffer<float> source(static_cast<int>(reader->numChannels), totalSamples);
+    if (!reader->read(&source, 0, totalSamples, 0, true, true))
+    {
+        errorMessage = "Could not decode the selected audio file.";
+        return 0;
+    }
+
+    const int frameSize = juce::jmax(1, static_cast<int>(reader->sampleRate * 0.005));
+    const int frameCount = (totalSamples + frameSize - 1) / frameSize;
+    std::vector<float> energy(static_cast<size_t>(frameCount), 0.0f);
+
+    for (int frame = 0; frame < frameCount; ++frame)
+    {
+        const int begin = frame * frameSize;
+        const int end = juce::jmin(begin + frameSize, totalSamples);
+        double sumSquares = 0.0;
+        int count = 0;
+        for (int channel = 0; channel < source.getNumChannels(); ++channel)
+        {
+            for (int sample = begin; sample < end; ++sample)
+            {
+                const double value = source.getSample(channel, sample);
+                sumSquares += value * value;
+                ++count;
+            }
+        }
+        energy[static_cast<size_t>(frame)] = count > 0
+            ? static_cast<float>(std::sqrt(sumSquares / static_cast<double>(count))) : 0.0f;
+    }
+
+    const float maxEnergy = *std::max_element(energy.begin(), energy.end());
+    if (maxEnergy < 0.001f)
+    {
+        errorMessage = "The file is silent or its level is too low for prototype transient detection.";
+        return 0;
+    }
+
+    const float threshold = juce::jmax(0.002f, maxEnergy * 0.085f);
+    const int refractoryFrames = juce::jmax(1, static_cast<int>(0.075 * reader->sampleRate / frameSize));
+    std::vector<std::pair<int, float>> onsets;
+    int lastOnsetFrame = -refractoryFrames;
+
+    for (int frame = 1; frame + 1 < frameCount; ++frame)
+    {
+        const float current = energy[static_cast<size_t>(frame)];
+        if (current > threshold
+            && current >= energy[static_cast<size_t>(frame - 1)]
+            && current > energy[static_cast<size_t>(frame + 1)]
+            && frame - lastOnsetFrame >= refractoryFrames)
+        {
+            onsets.emplace_back(frame * frameSize, current);
+            lastOnsetFrame = frame;
+        }
+    }
+
+    if (onsets.empty())
+    {
+        errorMessage = "No usable transients detected. Try a louder or less compressed source.";
+        return 0;
+    }
+
+    if (onsets.size() > static_cast<size_t>(padCount))
+    {
+        std::partial_sort(onsets.begin(), onsets.begin() + padCount, onsets.end(),
+            [](const auto& a, const auto& b) { return a.second > b.second; });
+        onsets.resize(static_cast<size_t>(padCount));
+    }
+    std::sort(onsets.begin(), onsets.end(),
+        [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    for (int pad = 0; pad < padCount; ++pad)
+        std::atomic_store_explicit(&padSamples[static_cast<size_t>(pad)],
+                                   std::shared_ptr<const SampleData> {}, std::memory_order_release);
+
+    const int preRoll = static_cast<int>(reader->sampleRate * 0.010);
+    const int maxLength = static_cast<int>(reader->sampleRate * maxSampleSeconds);
+    int loaded = 0;
+
+    for (size_t i = 0; i < onsets.size() && loaded < padCount; ++i)
+    {
+        const int start = juce::jmax(0, onsets[i].first - preRoll);
+        int end = juce::jmin(totalSamples, start + maxLength);
+        if (i + 1 < onsets.size())
+        {
+            const int nextStart = juce::jmax(0, onsets[i + 1].first - preRoll);
+            if (nextStart - start > static_cast<int>(reader->sampleRate * 0.035))
+                end = juce::jmin(end, nextStart);
+        }
+
+        const int length = end - start;
+        if (length < static_cast<int>(reader->sampleRate * 0.025))
+            continue;
+
+        auto sample = std::make_shared<SampleData>();
+        sample->audio.setSize(1, length);
+        sample->sampleRate = reader->sampleRate;
+
+        for (int position = 0; position < length; ++position)
+        {
+            float mono = 0.0f;
+            for (int channel = 0; channel < source.getNumChannels(); ++channel)
+                mono += source.getSample(channel, start + position);
+            mono /= static_cast<float>(source.getNumChannels());
+            sample->audio.setSample(0, position, mono);
+        }
+
+        std::shared_ptr<const SampleData> immutableSample = sample;
+        std::atomic_store_explicit(&padSamples[static_cast<size_t>(loaded)],
+                                   std::move(immutableSample), std::memory_order_release);
+        ++loaded;
+    }
+
+    if (loaded == 0)
+        errorMessage = "Transients were detected, but no segments were long enough to load.";
+    return loaded;
 }
 
 void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -146,10 +316,9 @@ void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }
 
     auto midiIt = midiMessages.cbegin();
-
     for (int sampleIndex = 0; sampleIndex < buffer.getNumSamples(); ++sampleIndex)
     {
-        while (midiIt != midiMessages.cend() && midiIt->samplePosition == sampleIndex)
+        while (midiIt != midiMessages.cend() && midiIt->samplePosition <= sampleIndex)
         {
             const auto message = midiIt->getMessage();
             if (message.isNoteOn())
@@ -161,10 +330,10 @@ void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         for (auto& voice : voices)
             mixed += renderVoice(voice);
 
+        mixed = std::tanh(mixed);
         for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
             buffer.setSample(channel, sampleIndex, mixed);
     }
-
 }
 
 juce::AudioProcessorEditor* CrayLdrDrumkitCloneAudioProcessor::createEditor()
