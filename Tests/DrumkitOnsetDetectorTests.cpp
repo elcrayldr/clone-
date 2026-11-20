@@ -54,8 +54,8 @@ int main()
     closeHigh[20] = 0.35f;
     closeHigh[27] = 0.60f;
     const auto refractory = crayldr::detectOnsets(closeEnergy, closeHigh, 220, 44100.0);
-    if (refractory.size() != 1 || refractory.front().samplePosition != 27 * 220) return 7;
+    if (refractory.size() != 1 || refractory.front().samplePosition != 27 * 220) return 9;
 
-    std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, refractory selection, silence and invalid input, non-finite data and refractory selection.\n";
+    std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, silence, invalid input, non-finite data and refractory suppression.\n";
     return 0;
 }
