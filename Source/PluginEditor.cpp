@@ -4,6 +4,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
     setSize(900, 680);
+
     title.setText("CRAY LDR  /  DRUMKIT CLONE", juce::dontSendNotification);
     title.setFont(juce::Font(juce::FontOptions(25.0f, juce::Font::bold)));
     title.setColour(juce::Label::textColourId, juce::Colour(0xffffc928));
@@ -16,29 +17,29 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         fileChooser = std::make_unique<juce::FileChooser>(
             "Import a song or instrumental", juce::File{}, "*.wav;*.aif;*.aiff");
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        fileChooser->launchAsync(flags,
-            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)
-            {
-                if (safeThis == nullptr)
-                    return;
-                const auto file = chooser.getResult();
-                if (file == juce::File{})
-                    return;
+        juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
+        fileChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
+        {
+            if (safeThis == nullptr)
+                return;
+            const auto file = chooser.getResult();
+            if (file == juce::File{})
+                return;
 
-                safeThis->status.setText("ANALYSING IN BACKGROUND: " + file.getFileName(), juce::dontSendNotification);
-                safeThis->importButton.setEnabled(false);
-                safeThis->audioProcessor.importAudioFileAsync(file,
-                    [safeThis, fileName = file.getFileName()](int count, juce::String error)
-                    {
-                        if (safeThis == nullptr)
-                            return;
-                        safeThis->importButton.setEnabled(true);
-                        if (count > 0)
-                            safeThis->status.setText("IMPORTED " + juce::String(count) + " SLICES  |  " + fileName, juce::dontSendNotification);
-                        else
-                            safeThis->status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
-                    });
-            });
+            safeThis->status.setText("ANALYSING IN BACKGROUND: " + file.getFileName(), juce::dontSendNotification);
+            safeThis->importButton.setEnabled(false);
+            safeThis->audioProcessor.importAudioFileAsync(file,
+                [safeThis, fileName = file.getFileName()](int count, juce::String error)
+                {
+                    if (safeThis == nullptr)
+                        return;
+                    safeThis->importButton.setEnabled(true);
+                    if (count > 0)
+                        safeThis->status.setText("IMPORTED " + juce::String(count) + " SLICES  |  " + fileName, juce::dontSendNotification);
+                    else
+                        safeThis->status.setText("IMPORT FAILED: " + error, juce::dontSendNotification);
+                });
+        });
     };
     addAndMakeVisible(importButton);
 
@@ -46,46 +47,68 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     exportButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     exportButton.onClick = [this]
     {
-        exportChooser = std::make_unique<juce::FileChooser>("Export drum kit", juce::File{}, juce::FileBrowserComponent::canSelectDirectories);
-        exportChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)
-            {
-                if (safeThis == nullptr) return;
-                const auto folder = chooser.getResult();
-                if (folder == juce::File{}) return;
-                juce::String error;
-                if (safeThis->audioProcessor.exportKitToDirectory(folder, error))
-                    safeThis->status.setText("KIT EXPORTED: " + folder.getFullPathName(), juce::dontSendNotification);
-                else
-                    safeThis->status.setText("EXPORT FAILED: " + error, juce::dontSendNotification);
-            });
+        exportChooser = std::make_unique<juce::FileChooser>(
+            "Export drum kit", juce::File{}, juce::FileBrowserComponent::canSelectDirectories);
+        const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
+        juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
+        exportChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
+        {
+            if (safeThis == nullptr)
+                return;
+            const auto folder = chooser.getResult();
+            if (folder == juce::File{})
+                return;
+            juce::String error;
+            if (safeThis->audioProcessor.exportKitToDirectory(folder, error))
+                safeThis->status.setText("KIT EXPORTED: " + folder.getFullPathName(), juce::dontSendNotification);
+            else
+                safeThis->status.setText("EXPORT FAILED: " + error, juce::dontSendNotification);
+        });
     };
     addAndMakeVisible(exportButton);
+
     exportMidiButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff454545));
     exportMidiButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     exportMidiButton.onClick = [this]
     {
         midiChooser = std::make_unique<juce::FileChooser>(
-            "Export 16-step MIDI pattern", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            "Export 16-step MIDI pattern",
+            juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                 .getChildFile("CRAY_LDR_Drumkit_Pattern.mid"), "*.mid");
-        midiChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-            [safeThis = juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor>(this)](const juce::FileChooser& chooser)
-            {
-                if (safeThis == nullptr)
-                    return;
-                auto file = chooser.getResult();
-                if (file == juce::File{})
-                    return;
-                if (!file.hasFileExtension(".mid"))
-                    file = file.withFileExtension("mid");
-                juce::String error;
-                if (safeThis->audioProcessor.exportMidiPattern(file, error))
-                    safeThis->status.setText("MIDI EXPORTED: " + file.getFileName(), juce::dontSendNotification);
-                else
-                    safeThis->status.setText("MIDI EXPORT FAILED: " + error, juce::dontSendNotification);
-            });
+        const auto flags = juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles;
+        juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
+        midiChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
+        {
+            if (safeThis == nullptr)
+                return;
+            auto file = chooser.getResult();
+            if (file == juce::File{})
+                return;
+            if (!file.hasFileExtension(".mid"))
+                file = file.withFileExtension("mid");
+            juce::String error;
+            if (safeThis->audioProcessor.exportMidiPattern(file, error))
+                safeThis->status.setText("MIDI EXPORTED: " + file.getFileName(), juce::dontSendNotification);
+            else
+                safeThis->status.setText("MIDI EXPORT FAILED: " + error, juce::dontSendNotification);
+        });
     };
     addAndMakeVisible(exportMidiButton);
+
+    subtitle.setText("64-PAD MIDI ENGINE  |  NOTES 36-99", juce::dontSendNotification);
+    subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
+    subtitle.setColour(juce::Label::textColourId, juce::Colour(0xffa7a7a7));
+    addAndMakeVisible(subtitle);
+
+    selection.setText("SELECTED: PAD 01  /  MIDI NOTE 36", juce::dontSendNotification);
+    selection.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
+    selection.setColour(juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible(selection);
+
+    status.setText("IMPORT: no audio source loaded", juce::dontSendNotification);
+    status.setFont(juce::Font(juce::FontOptions(11.0f)));
+    status.setColour(juce::Label::textColourId, juce::Colour(0xffb7b7b7));
+    addAndMakeVisible(status);
 
     patternLabel.setText("16-STEP PATTERN  /  EDIT SELECTED PAD", juce::dontSendNotification);
     patternLabel.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
@@ -101,7 +124,10 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     tempoSlider.setRange(40.0, 300.0, 1.0);
     tempoSlider.setValue(audioProcessor.getPatternTempo(), juce::dontSendNotification);
     tempoSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 48, 20);
-    tempoSlider.onValueChange = [this] { audioProcessor.setPatternTempo(static_cast<float>(tempoSlider.getValue())); };
+    tempoSlider.onValueChange = [this]
+    {
+        audioProcessor.setPatternTempo(static_cast<float>(tempoSlider.getValue()));
+    };
     addAndMakeVisible(tempoSlider);
 
     for (int step = 0; step < static_cast<int>(stepButtons.size()); ++step)
@@ -114,30 +140,16 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         button.setToggleState(audioProcessor.getPatternStep(selectedPad, step), juce::dontSendNotification);
         button.onClick = [this, step]
         {
-            audioProcessor.setPatternStep(selectedPad, step, stepButtons[static_cast<size_t>(step)]->getToggleState());
+            audioProcessor.setPatternStep(selectedPad, step,
+                stepButtons[static_cast<size_t>(step)]->getToggleState());
         };
         addAndMakeVisible(button);
     }
 
-
-    subtitle.setText("64-PAD MIDI ENGINE  |  DEVELOPMENT BUILD  |  NOTES 36-99", juce::dontSendNotification);
-    subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
-    subtitle.setColour(juce::Label::textColourId, juce::Colour(0xffa7a7a7));
-    addAndMakeVisible(subtitle);
-
-    selection.setText("SELECTED: PAD 01  /  MIDI NOTE 36", juce::dontSendNotification);
-    selection.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
-    selection.setColour(juce::Label::textColourId, juce::Colours::white);
-    addAndMakeVisible(selection);
-
-    status.setText("IMPORT: no audio source loaded", juce::dontSendNotification);
-    status.setFont(juce::Font(juce::FontOptions(11.0f)));
-    status.setColour(juce::Label::textColourId, juce::Colour(0xffb7b7b7));
-    addAndMakeVisible(status);
-
     for (int i = 0; i < static_cast<int>(padButtons.size()); ++i)
     {
-        padButtons[static_cast<size_t>(i)] = std::make_unique<juce::TextButton>(juce::String(i + 1).paddedLeft('0', 2));
+        padButtons[static_cast<size_t>(i)] = std::make_unique<juce::TextButton>(
+            juce::String(i + 1).paddedLeft('0', 2));
         auto& button = *padButtons[static_cast<size_t>(i)];
         button.setClickingTogglesState(false);
         button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff292929));
