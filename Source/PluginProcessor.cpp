@@ -555,8 +555,8 @@ bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
         return false;
     }
 
-    juce::String manifest = "CRAY LDR - DRUMKIT CLONE KIT\\nWAV format: PCM 24-bit mono\\n";
-    manifest += "Pad\\tMIDI note\\tSample rate\\tFrames\\tFile\\n";
+    juce::String manifest = "CRAY LDR - DRUMKIT CLONE KIT\nWAV format: PCM 24-bit mono\n";
+    manifest += "Pad\tMIDI note\tSample rate\tFrames\tFile\n";
     for (int pad = 0; pad < padCount; ++pad)
     {
         const auto* sample = padSamplePointers[static_cast<size_t>(pad)].load(std::memory_order_acquire);
@@ -565,9 +565,9 @@ bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
         const auto note = firstMidiNote + pad;
         const auto name = "Pad_" + juce::String(pad + 1).paddedLeft('0', 2)
             + "_MIDI_" + juce::String(note) + ".wav";
-        manifest += juce::String(pad + 1) + "\\t" + juce::String(note) + "\\t"
-            + juce::String(sample->sampleRate, 0) + "\\t"
-            + juce::String(sample->audio.getNumSamples()) + "\\t" + name + "\\n";
+        manifest += juce::String(pad + 1) + "\t" + juce::String(note) + "\t"
+            + juce::String(sample->sampleRate, 0) + "\t"
+            + juce::String(sample->audio.getNumSamples()) + "\t" + name + "\n";
     }
 
     if (!directory.getChildFile("KIT_MANIFEST.txt").replaceWithText(manifest))
