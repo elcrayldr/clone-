@@ -37,11 +37,17 @@ public:
     static constexpr int firstMidiNote = 36;
     static constexpr int padCount = 64;
     static constexpr int lastMidiNote = firstMidiNote + padCount - 1;
+    static constexpr int patternStepCount = 16;
 
     void triggerPad(int padIndex, float velocity = 0.9f) noexcept;
     int importAudioFile(const juce::File& file, juce::String& errorMessage);
     void importAudioFileAsync(juce::File file, std::function<void(int, juce::String)> completion);
     bool exportKitToDirectory(const juce::File& directory, juce::String& errorMessage);
+    void setPatternStep(int pad, int step, bool enabled) noexcept;
+    bool getPatternStep(int pad, int step) const noexcept;
+    void setPatternTempo(float bpm) noexcept;
+    float getPatternTempo() const noexcept;
+    bool exportMidiPattern(const juce::File& file, juce::String& errorMessage) const;
 
 private:
     struct SampleData
@@ -69,6 +75,8 @@ private:
     juce::ThreadPool importWorkers { 1 };
     static constexpr size_t maxRetainedSamples = 256;
     std::array<std::atomic<float>, padCount> pendingPadVelocities {};
+    std::array<std::array<std::atomic<std::uint8_t>, patternStepCount>, padCount> patternSteps {};
+    std::atomic<float> patternTempo { 120.0f };
     double currentSampleRate = 44100.0;
 
     void startVoice(int midiNote, float velocity) noexcept;
