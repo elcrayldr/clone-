@@ -10,6 +10,8 @@ constexpr float twoPi = 6.2831853071795864769f;
 constexpr float silenceThreshold = 0.00001f;
 constexpr double maxImportSeconds = 600.0;
 constexpr double maxSampleSeconds = 1.25;
+constexpr size_t maxStateBytes = 256u * 1024u * 1024u;
+constexpr size_t maxStateSamples = 32u * 1024u * 1024u;
 }
 
 CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
@@ -17,7 +19,7 @@ CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
 {
 }
 
-void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+CrayLdrDrumkitCloneAudioProcessor::~CrayLdrDrumkitCloneAudioProcessor()\n{\n    importWorkers.removeAllJobs(true, -1);\n}\n\nvoid CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     std::lock_guard<std::mutex> lock(importMutex);
     juce::MemoryOutputStream stream(destData, false);
@@ -40,7 +42,7 @@ void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& d
 
 void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    if (data == nullptr || sizeInBytes < 12)
+    if (data == nullptr || sizeInBytes < 12 || static_cast<size_t>(sizeInBytes) > maxStateBytes)
         return;
 
     std::lock_guard<std::mutex> lock(importMutex);
@@ -49,7 +51,7 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
         return;
 
     std::array<std::unique_ptr<SampleData>, padCount> restored {};
-    size_t requiredSlots = 0;
+    size_t requiredSlots = 0;\n    size_t totalStateSamples = 0;
     for (int pad = 0; pad < padCount; ++pad)
     {
         const int length = stream.readInt();
@@ -390,6 +392,80 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
     if (loaded == 0)
         errorMessage = "Transients were detected, but no segments were long enough to load.";
     return loaded;
+}
+
+
+void CrayLdrDrumkitCloneAudioProcessor::importAudioFileAsync(
+    juce::File file, std::function<void(int, juce::String)> completion)
+{
+    importWorkers.addJob([this, file = std::move(file), completion = std::move(completion)]() mutable
+    {
+        juce::String error;
+        const int count = importAudioFile(file, error);
+        juce::MessageManager::callAsync(
+            [completion = std::move(completion), count, error = std::move(error)]() mutable
+            {
+                if (completion)
+                    completion(count, error);
+            });
+    }, true);
+}
+
+bool CrayLdrDrumkitCloneAudioProcessor::exportKitToDirectory(
+    const juce::File& directory, juce::String& errorMessage) const
+{
+    std::lock_guard<std::mutex> lock(importMutex);
+    errorMessage.clear();
+    if (!directory.createDirectory() && !directory.isDirectory())
+    {
+        errorMessage = "Could not create the selected export directory.";
+        return false;
+    }
+
+    juce::WavAudioFormat wav;
+    int exported = 0;
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        const auto* sample = padSamplePointers[static_cast<size_t>(pad)].load(std::memory_order_acquire);
+        if (sample == nullptr || sample->audio.getNumSamples() <= 0)
+            continue;
+
+        const auto note = firstMidiNote + pad;
+        const auto name = "Pad_" + juce::String(pad + 1).paddedLeft('0', 2)
+            + "_MIDI_" + juce::String(note) + ".wav";
+        const auto outputFile = directory.getChildFile(name);
+        auto outputStream = std::unique_ptr<juce::OutputStream>(outputFile.createOutputStream());
+        if (outputStream == nullptr)
+        {
+            errorMessage = "Could not create file: " + outputFile.getFileName();
+            return false;
+        }
+
+        juce::AudioFormatWriterOptions options;
+        options = options.withSampleRate(sample->sampleRate)
+                         .withNumChannels(1)
+                         .withBitsPerSample(24);
+        auto writer = wav.createWriterFor(std::move(outputStream), options);
+        if (writer == nullptr)
+        {
+            errorMessage = "Could not initialise WAV writer for: " + outputFile.getFileName();
+            return false;
+        }
+
+        if (!writer->writeFromAudioSampleBuffer(sample->audio, 0, sample->audio.getNumSamples()))
+        {
+            errorMessage = "Failed while writing: " + outputFile.getFileName();
+            return false;
+        }
+        ++exported;
+    }
+
+    if (exported == 0)
+    {
+        errorMessage = "There are no imported samples to export.";
+        return false;
+    }
+    return true;
 }
 
 void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
