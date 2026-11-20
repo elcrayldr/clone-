@@ -1,0 +1,74 @@
+#include "PluginEditor.h"
+
+CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor(CrayLdrDrumkitCloneAudioProcessor& p)
+    : AudioProcessorEditor(&p), audioProcessor(p)
+{
+    setSize(820, 590);
+    title.setText("CRAY LDR  /  DRUMKIT CLONE", juce::dontSendNotification);
+    title.setFont(juce::Font(juce::FontOptions(25.0f, juce::Font::bold)));
+    title.setColour(juce::Label::textColourId, juce::Colour(0xffffc928));
+    addAndMakeVisible(title);
+
+    subtitle.setText("64-PAD MIDI ENGINE  |  DEVELOPMENT BUILD  |  NOTES 36-99", juce::dontSendNotification);
+    subtitle.setFont(juce::Font(juce::FontOptions(12.0f)));
+    subtitle.setColour(juce::Label::textColourId, juce::Colour(0xffa7a7a7));
+    addAndMakeVisible(subtitle);
+
+    selection.setText("SELECTED: PAD 01  /  MIDI NOTE 36", juce::dontSendNotification);
+    selection.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
+    selection.setColour(juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible(selection);
+
+    for (int i = 0; i < static_cast<int>(padButtons.size()); ++i)
+    {
+        padButtons[static_cast<size_t>(i)] = std::make_unique<juce::TextButton>(juce::String(i + 1).paddedLeft('0', 2));
+        auto& button = *padButtons[static_cast<size_t>(i)];
+        button.setClickingTogglesState(false);
+        button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff292929));
+        button.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffb88b12));
+        button.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+        button.onClick = [this, i]
+        {
+            selectedPad = i;
+            selection.setText("SELECTED: PAD " + juce::String(i + 1).paddedLeft('0', 2)
+                + "  /  MIDI NOTE " + juce::String(CrayLdrDrumkitCloneAudioProcessor::firstMidiNote + i),
+                juce::dontSendNotification);
+        };
+        addAndMakeVisible(button);
+    }
+}
+
+void CrayLdrDrumkitCloneAudioProcessorEditor::paint(juce::Graphics& g)
+{
+    g.fillAll(juce::Colour(0xff151515));
+    g.setColour(juce::Colour(0xff303030));
+    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(8.0f), 8.0f, 1.0f);
+    g.setColour(juce::Colour(0xffffc928));
+    g.fillRect(16, 78, getWidth() - 32, 2);
+}
+
+void CrayLdrDrumkitCloneAudioProcessorEditor::resized()
+{
+    auto area = getLocalBounds().reduced(20);
+    title.setBounds(area.removeFromTop(38));
+    subtitle.setBounds(area.removeFromTop(28));
+    area.removeFromTop(12);
+    selection.setBounds(area.removeFromTop(28));
+    area.removeFromTop(12);
+
+    constexpr int columns = 8;
+    constexpr int rows = 8;
+    const int gap = 7;
+    const int cellWidth = (area.getWidth() - gap * (columns - 1)) / columns;
+    const int cellHeight = (area.getHeight() - gap * (rows - 1)) / rows;
+
+    for (int i = 0; i < static_cast<int>(padButtons.size()); ++i)
+    {
+        const int row = i / columns;
+        const int column = i % columns;
+        padButtons[static_cast<size_t>(i)]->setBounds(
+            area.getX() + column * (cellWidth + gap),
+            area.getY() + row * (cellHeight + gap),
+            cellWidth, cellHeight);
+    }
+}
