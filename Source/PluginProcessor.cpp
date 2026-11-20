@@ -61,13 +61,17 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
     for (int pad = 0; pad < padCount; ++pad)
     {
         const int length = stream.readInt();
-        if (length < 0 || length > 192000)
+        if (length < 0 || length > 480000)
             return;
         if (length == 0)
             continue;
 
         const double rate = stream.readDouble();
-        if (!std::isfinite(rate) || rate < 8000.0 || rate > 384000.0)
+        if (!std::isfinite(rate) || rate < 8000.0 || rate > 384000.0
+            || static_cast<double>(length) > rate * maxSampleSeconds + 1.0)
+            return;
+        totalStateSamples += static_cast<size_t>(length);
+        if (totalStateSamples > maxStateSamples)
             return;
 
         auto sample = std::make_unique<SampleData>();
