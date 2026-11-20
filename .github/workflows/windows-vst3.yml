@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: windows-vst3-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-windows:
     runs-on: windows-2022
