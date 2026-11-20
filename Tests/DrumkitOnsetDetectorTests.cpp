@@ -36,6 +36,17 @@ int main()
     const auto invalid = crayldr::detectOnsets(energy, high, 0, 44100.0);
     if (!invalid.empty()) return 6;
 
-    std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, silence, invalid input.\n";
+    std::vector<float> closeEnergy(100, 0.004f);
+    std::vector<float> closeHigh(100, 0.002f);
+    closeEnergy[20] = 0.50f;
+    closeEnergy[21] = 0.30f;
+    closeEnergy[27] = 0.80f;
+    closeEnergy[28] = 0.40f;
+    closeHigh[20] = 0.35f;
+    closeHigh[27] = 0.60f;
+    const auto refractory = crayldr::detectOnsets(closeEnergy, closeHigh, 220, 44100.0);
+    if (refractory.size() != 1 || refractory.front().samplePosition != 27 * 220) return 7;
+
+    std::cout << "Drumkit onset detector tests passed: 3 synthetic hits, refractory selection, silence and invalid input.\n";
     return 0;
 }
