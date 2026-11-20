@@ -20,6 +20,12 @@ private:
     juce::Label status;
     juce::TextButton importButton { "IMPORT AUDIO" };
     juce::TextButton exportButton { "EXPORT KIT" };
+    juce::TextButton exportMidiButton { "EXPORT MIDI" };
+    juce::Label patternLabel;
+    juce::Label tempoLabel;
+    juce::Slider tempoSlider;
+    std::array<std::unique_ptr<juce::ToggleButton>, 16> stepButtons;
+    std::unique_ptr<juce::FileChooser> midiChooser;
     std::unique_ptr<juce::FileChooser> exportChooser;
     std::unique_ptr<juce::FileChooser> fileChooser;
     std::array<std::unique_ptr<juce::TextButton>, 64> padButtons;
