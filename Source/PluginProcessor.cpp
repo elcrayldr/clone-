@@ -20,6 +20,12 @@ constexpr juce::int64 maxDecodedAudioSamples = 64ll * 1024ll * 1024ll;
 CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
+    for (auto& sample : padSamplePointers)
+        sample.store(nullptr, std::memory_order_relaxed);
+
+    for (auto& velocity : pendingPadVelocities)
+        velocity.store(0.0f, std::memory_order_relaxed);
+
     for (auto& pad : patternSteps)
         for (auto& step : pad)
             step.store(0, std::memory_order_relaxed);
