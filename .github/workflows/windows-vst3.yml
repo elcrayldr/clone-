@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: windows-vst3-${{ github.ref }}
+  group: windows-vst3-${{ github.ref }}-v2
   cancel-in-progress: false
 
 jobs:
