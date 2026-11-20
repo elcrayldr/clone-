@@ -401,12 +401,10 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
         return 0;
     }
 
-    for (int pad = 0; pad < padCount; ++pad)
-        padSamplePointers[static_cast<size_t>(pad)].store(nullptr, std::memory_order_release);
-
     const int preRoll = static_cast<int>(reader->sampleRate * 0.010);
     const int maxLength = static_cast<int>(reader->sampleRate * maxSampleSeconds);
     int loaded = 0;
+    std::array<std::unique_ptr<SampleData>, padCount> importedSamples {};
 
     const size_t availableSlots = maxRetainedSamples - retainedCount;
     const size_t maxToLoad = juce::jmin(static_cast<size_t>(padCount), availableSlots);
@@ -439,14 +437,30 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
             sample->audio.setSample(0, position, mono);
         }
 
-        const auto* samplePointer = sample.get();
-        samplePool.push_back(std::move(sample));
-        padSamplePointers[static_cast<size_t>(loaded)].store(samplePointer, std::memory_order_release);
+        importedSamples[static_cast<size_t>(loaded)] = std::move(sample);
         ++loaded;
     }
 
     if (loaded == 0)
+    {
         errorMessage = "Transients were detected, but no segments were long enough to load.";
+        return 0;
+    }
+
+    // Publish the replacement kit only after every segment has been prepared successfully.
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        if (pad < loaded)
+        {
+            const auto* samplePointer = importedSamples[static_cast<size_t>(pad)].get();
+            samplePool.push_back(std::move(importedSamples[static_cast<size_t>(pad)]));
+            padSamplePointers[static_cast<size_t>(pad)].store(samplePointer, std::memory_order_release);
+        }
+        else
+        {
+            padSamplePointers[static_cast<size_t>(pad)].store(nullptr, std::memory_order_release);
+        }
+    }
     return loaded;
 }
 
