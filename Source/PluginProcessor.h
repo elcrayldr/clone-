@@ -41,7 +41,7 @@ public:
     void triggerPad(int padIndex, float velocity = 0.9f) noexcept;
     int importAudioFile(const juce::File& file, juce::String& errorMessage);
     void importAudioFileAsync(juce::File file, std::function<void(int, juce::String)> completion);
-    bool exportKitToDirectory(const juce::File& directory, juce::String& errorMessage) const;
+    bool exportKitToDirectory(const juce::File& directory, juce::String& errorMessage);
 
 private:
     struct SampleData
