@@ -66,7 +66,7 @@ void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, in
         sample->sampleRate = rate;
         sample->audio.setSize(1, length);
         const auto bytes = static_cast<size_t>(length) * sizeof(float);
-        if (stream.getNumBytesRemaining() < static_cast<ssize_t>(bytes)
+        if (stream.getNumBytesRemaining() < static_cast<juce::int64>(bytes)
             || !stream.read(sample->audio.getWritePointer(0), bytes))
             return;
 
