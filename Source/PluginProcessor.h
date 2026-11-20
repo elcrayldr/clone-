@@ -59,6 +59,7 @@ private:
     static constexpr int maxVoices = 32;
     std::array<Voice, maxVoices> voices {};
     std::array<std::shared_ptr<const SampleData>, padCount> padSamples {};
+    std::array<std::atomic<float>, padCount> pendingPadVelocities {};
     double currentSampleRate = 44100.0;
 
     void startVoice(int midiNote, float velocity) noexcept;
