@@ -58,7 +58,8 @@ void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& d
 
 void CrayLdrDrumkitCloneAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    if (data == nullptr || sizeInBytes < 12 || static_cast<size_t>(sizeInBytes) > maxStateBytes)
+    if (data == nullptr || sizeInBytes < 12 + padCount * static_cast<int>(sizeof(std::int32_t))
+        || static_cast<size_t>(sizeInBytes) > maxStateBytes)
         return;
 
     std::lock_guard<std::mutex> lock(importMutex);
