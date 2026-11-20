@@ -35,6 +35,19 @@ jobs:
       - name: Run automated tests
         run: ctest --test-dir build -C Release --output-on-failure
 
+      - name: Verify VST3 bundle structure
+        shell: pwsh
+        run: |
+          $plugin = Join-Path (Get-Location) "build/CrayLdrDrumkitClone_artefacts/Release/VST3/CRAY LDR - DRUMKIT CLONE.vst3"
+          $moduleInfo = Join-Path $plugin "Contents/Resources/moduleinfo.json"
+          $binaryDir = Join-Path $plugin "Contents/x86_64-win"
+          if (-not (Test-Path -LiteralPath $moduleInfo -PathType Leaf)) { throw "VST3 moduleinfo.json missing: $moduleInfo" }
+          if (-not (Test-Path -LiteralPath $binaryDir -PathType Container)) { throw "VST3 x64 binary directory missing: $binaryDir" }
+          $binary = Get-ChildItem -LiteralPath $binaryDir -Filter "*.vst3" -File | Select-Object -First 1
+          if ($null -eq $binary -or $binary.Length -lt 65536) { throw "VST3 x64 module missing or implausibly small." }
+          $metadata = Get-Content -LiteralPath $moduleInfo -Raw
+          if ($metadata -notmatch [regex]::Escape("CRAY LDR - DRUMKIT CLONE") -or $metadata -notmatch "Audio Module Class") { throw "VST3 module metadata does not identify the expected audio plugin." }
+
       - name: Validate VST3 lifecycle and state with pluginval
         shell: pwsh
         run: |
@@ -48,7 +61,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $plugin)) { throw "Built VST3 bundle not found: $plugin" }
           $logDir = Join-Path $env:RUNNER_TEMP "pluginval-logs"
           New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-          & $validator.FullName --strictness-level 5 --output-dir $logDir $plugin
+          & $validator.FullName --strictness-level 10 --output-dir $logDir $plugin
           $pluginvalExitCode = $LASTEXITCODE
           if ($pluginvalExitCode -ne 0) { exit $pluginvalExitCode }
 
