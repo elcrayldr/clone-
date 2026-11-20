@@ -315,15 +315,24 @@ void CrayLdrDrumkitCloneAudioProcessor::processBlock(juce::AudioBuffer<float>& b
             startVoice(firstMidiNote + pad, velocity);
     }
 
-    auto midiIt = midiMessages.cbegin();
+    auto midiIt = midiMessages.begin();
+    auto midiEnd = midiMessages.end();
+    juce::MidiMessageMetadata midiEvent;
+    bool hasMidiEvent = midiIt != midiEnd;
+    if (hasMidiEvent)
+        midiEvent = *midiIt;
+
     for (int sampleIndex = 0; sampleIndex < buffer.getNumSamples(); ++sampleIndex)
     {
-        while (midiIt != midiMessages.cend() && midiIt->samplePosition <= sampleIndex)
+        while (hasMidiEvent && midiEvent.samplePosition <= sampleIndex)
         {
-            const auto message = midiIt->getMessage();
+            const auto message = midiEvent.getMessage();
             if (message.isNoteOn())
                 startVoice(message.getNoteNumber(), message.getFloatVelocity());
             ++midiIt;
+            hasMidiEvent = midiIt != midiEnd;
+            if (hasMidiEvent)
+                midiEvent = *midiIt;
         }
 
         float mixed = 0.0f;
