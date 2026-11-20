@@ -40,6 +40,7 @@ public:
     static constexpr int patternStepCount = 16;
 
     void triggerPad(int padIndex, float velocity = 0.9f) noexcept;
+    bool isPadLoaded(int padIndex) const noexcept;
     int importAudioFile(const juce::File& file, juce::String& errorMessage);
     void importAudioFileAsync(juce::File file, std::function<void(int, juce::String)> completion);
     bool exportKitToDirectory(const juce::File& directory, juce::String& errorMessage);
