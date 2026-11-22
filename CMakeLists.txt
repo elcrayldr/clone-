@@ -12,9 +12,9 @@ FetchContent_Declare(juce
 FetchContent_MakeAvailable(juce)
 
 juce_add_plugin(CrayLdrDrumkitClone
-    COMPANY_NAME "Cray LDR"
+    COMPANY_NAME "CRAY LDR"
     BUNDLE_ID "com.crayldr.drumkitclone"
-    PLUGIN_MANUFACTURER_CODE Cray
+    PLUGIN_MANUFACTURER_CODE CrLd
     PLUGIN_CODE Drk1
     PRODUCT_NAME "CRAY LDR - DRUMKIT CLONE"
     VST3_CATEGORIES Instrument|Drum
@@ -24,7 +24,7 @@ juce_add_plugin(CrayLdrDrumkitClone
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
 )
 
