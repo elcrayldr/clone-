@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 project(CrayLdrDrumkitClone VERSION 0.1.0 LANGUAGES CXX)
 
+# Match the working CRAY AutoTune build: static MSVC runtime (/MT).
+# This removes the VST3 dependency on the Visual C++ Redistributable.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 include(FetchContent)
 set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
 set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
