@@ -140,6 +140,13 @@ int DrumLabProcessor::importAndSlice(const juce::File& file, juce::String& error
         return 0;
     }
 
+    if (reader->numChannels == 0
+        || reader->lengthInSamples * static_cast<juce::int64>(reader->numChannels) > 64ll * 1024ll * 1024ll)
+    {
+        error = "Decoded source exceeds the 256 MB safety limit.";
+        return 0;
+    }
+
     juce::AudioBuffer<float> decoded(static_cast<int>(reader->numChannels),
                                      static_cast<int>(reader->lengthInSamples));
     if (!reader->read(&decoded, 0, decoded.getNumSamples(), 0, true, true))
@@ -208,7 +215,8 @@ int DrumLabProcessor::importAndSlice(const juce::File& file, juce::String& error
     {
         const int start = onsets[i];
         const int next = (i + 1 < onsets.size()) ? onsets[i + 1] : mono.getNumSamples();
-        const int length = juce::jlimit(64, maxLength, next - start);
+        const int available = mono.getNumSamples() - start;
+        const int length = juce::jmin(maxLength, juce::jmax(1, juce::jmin(next - start, available)));
         auto sample = std::make_unique<Sample>();
         sample->sampleRate = reader->sampleRate;
         sample->audio.setSize(1, length);
