@@ -133,7 +133,8 @@ int DrumLabProcessor::importAndSlice(const juce::File& file, juce::String& error
     std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(file));
     if (reader == nullptr) { error = "Unsupported or unreadable audio file."; return 0; }
 
-    if (reader->lengthInSamples <= 0
+    if (reader->sampleRate < 8000.0 || reader->sampleRate > 384000.0
+        || reader->lengthInSamples <= 0
         || reader->lengthInSamples > static_cast<juce::int64>(reader->sampleRate * 600.0))
     {
         error = "Audio duration must be 10 minutes or less.";
