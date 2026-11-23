@@ -1,11 +1,11 @@
 #include "PluginEditor.h"
 
-CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor(CrayLdrDrumkitCloneAudioProcessor& p)
+CrayLdrDrumLabV1AudioProcessorEditor::CrayLdrDrumLabV1AudioProcessorEditor(CrayLdrDrumLabV1AudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
     setSize(900, 680);
 
-    title.setText("CRAY LDR  /  DRUMKIT CLONE", juce::dontSendNotification);
+    title.setText("CRAY LDR  /  DRUM LAB V1", juce::dontSendNotification);
     title.setFont(juce::Font(juce::FontOptions(25.0f, juce::Font::bold)));
     title.setColour(juce::Label::textColourId, juce::Colour(0xffffc928));
     addAndMakeVisible(title);
@@ -17,7 +17,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         fileChooser = std::make_unique<juce::FileChooser>(
             "Import a song or instrumental", juce::File{}, "*.wav;*.aif;*.aiff;*.flac;*.ogg");
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-        juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
+        juce::Component::SafePointer<CrayLdrDrumLabV1AudioProcessorEditor> safeThis(this);
         fileChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
         {
             if (safeThis == nullptr)
@@ -55,7 +55,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         exportChooser = std::make_unique<juce::FileChooser>(
             "Export drum kit", juce::File{}, "");
         const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
-        juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
+        juce::Component::SafePointer<CrayLdrDrumLabV1AudioProcessorEditor> safeThis(this);
         exportChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
         {
             if (safeThis == nullptr)
@@ -79,9 +79,9 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
         midiChooser = std::make_unique<juce::FileChooser>(
             "Export 16-step MIDI pattern",
             juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                .getChildFile("CRAY_LDR_Drumkit_Pattern.mid"), "*.mid");
+                .getChildFile("CRAY_LDR_Drum_Lab_V1_Pattern.mid"), "*.mid");
         const auto flags = juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles;
-        juce::Component::SafePointer<CrayLdrDrumkitCloneAudioProcessorEditor> safeThis(this);
+        juce::Component::SafePointer<CrayLdrDrumLabV1AudioProcessorEditor> safeThis(this);
         midiChooser->launchAsync(flags, [safeThis](const juce::FileChooser& chooser)
         {
             if (safeThis == nullptr)
@@ -166,7 +166,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
             audioProcessor.triggerPad(i, 0.9f);
             selectedPad = i;
             selection.setText("SELECTED: PAD " + juce::String(i + 1).paddedLeft('0', 2)
-                + "  /  MIDI NOTE " + juce::String(CrayLdrDrumkitCloneAudioProcessor::firstMidiNote + i),
+                + "  /  MIDI NOTE " + juce::String(CrayLdrDrumLabV1AudioProcessor::firstMidiNote + i),
                 juce::dontSendNotification);
             for (int step = 0; step < static_cast<int>(stepButtons.size()); ++step)
                 stepButtons[static_cast<size_t>(step)]->setToggleState(
@@ -176,7 +176,7 @@ CrayLdrDrumkitCloneAudioProcessorEditor::CrayLdrDrumkitCloneAudioProcessorEditor
     }
 }
 
-void CrayLdrDrumkitCloneAudioProcessorEditor::paint(juce::Graphics& g)
+void CrayLdrDrumLabV1AudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(0xff151515));
     g.setColour(juce::Colour(0xff303030));
@@ -185,7 +185,7 @@ void CrayLdrDrumkitCloneAudioProcessorEditor::paint(juce::Graphics& g)
     g.fillRect(16, 78, getWidth() - 32, 2);
 }
 
-void CrayLdrDrumkitCloneAudioProcessorEditor::resized()
+void CrayLdrDrumLabV1AudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(20);
     auto header = area.removeFromTop(38);

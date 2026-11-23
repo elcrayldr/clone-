@@ -4,16 +4,16 @@
 #include <array>
 #include <memory>
 
-class CrayLdrDrumkitCloneAudioProcessorEditor final : public juce::AudioProcessorEditor
+class CrayLdrDrumLabV1AudioProcessorEditor final : public juce::AudioProcessorEditor
 {
 public:
-    explicit CrayLdrDrumkitCloneAudioProcessorEditor(CrayLdrDrumkitCloneAudioProcessor&);
-    ~CrayLdrDrumkitCloneAudioProcessorEditor() override = default;
+    explicit CrayLdrDrumLabV1AudioProcessorEditor(CrayLdrDrumLabV1AudioProcessor&);
+    ~CrayLdrDrumLabV1AudioProcessorEditor() override = default;
     void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
-    CrayLdrDrumkitCloneAudioProcessor& audioProcessor;
+    CrayLdrDrumLabV1AudioProcessor& audioProcessor;
     juce::Label title;
     juce::Label subtitle;
     juce::Label selection;
@@ -31,5 +31,5 @@ private:
     std::array<std::unique_ptr<juce::TextButton>, 64> padButtons;
     int selectedPad = 0;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrayLdrDrumkitCloneAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrayLdrDrumLabV1AudioProcessorEditor)
 };

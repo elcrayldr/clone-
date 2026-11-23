@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(CrayLdrDrumkitClone VERSION 0.1.0 LANGUAGES C CXX)
+project(CrayLdrDrumLabV1 VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
@@ -68,14 +68,14 @@ endif()
 file(WRITE "${CRAY_JUCE_VST3_CLIENT}" "${CRAY_JUCE_VST3_SOURCE}")
 
 
-juce_add_plugin(CrayLdrDrumkitClone
+juce_add_plugin(CrayLdrDrumLabV1
     COMPANY_NAME "Cray LDR"
-    BUNDLE_ID "com.crayldr.drumkitclone.v2"
+    BUNDLE_ID "com.crayldr.drumlab.v1"
     PLUGIN_MANUFACTURER_CODE CrLd
-    PLUGIN_CODE DrC2
-    PRODUCT_NAME "CRAY LDR DRUMKIT CLONE V2"
+    PLUGIN_CODE DrL1
+    PRODUCT_NAME "CRAY LDR DRUM LAB V1"
     VST3_CATEGORIES Drum
-    DESCRIPTION "Drum kit extraction and sampler - independent V2 identity"
+    DESCRIPTION "Drum sampler and transient-slicing instrument - CRAY LDR DRUM LAB V1 identity"
     FORMATS VST3
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
@@ -85,22 +85,22 @@ juce_add_plugin(CrayLdrDrumkitClone
     COPY_PLUGIN_AFTER_BUILD FALSE
 )
 
-juce_generate_juce_header(CrayLdrDrumkitClone)
+juce_generate_juce_header(CrayLdrDrumLabV1)
 
-target_sources(CrayLdrDrumkitClone PRIVATE
+target_sources(CrayLdrDrumLabV1 PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
 )
-target_compile_features(CrayLdrDrumkitClone PRIVATE cxx_std_17)
-target_compile_definitions(CrayLdrDrumkitClone PUBLIC
+target_compile_features(CrayLdrDrumLabV1 PRIVATE cxx_std_17)
+target_compile_definitions(CrayLdrDrumLabV1 PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
 )
 if(MSVC)
-    target_compile_options(CrayLdrDrumkitClone PRIVATE /utf-8)
+    target_compile_options(CrayLdrDrumLabV1 PRIVATE /utf-8)
 endif()
-target_link_libraries(CrayLdrDrumkitClone PRIVATE
+target_link_libraries(CrayLdrDrumLabV1 PRIVATE
     juce::juce_audio_utils
     juce::juce_audio_processors
     juce::juce_dsp

@@ -8,11 +8,11 @@
 #include <vector>
 #include <functional>
 
-class CrayLdrDrumkitCloneAudioProcessor final : public juce::AudioProcessor
+class CrayLdrDrumLabV1AudioProcessor final : public juce::AudioProcessor
 {
 public:
-    CrayLdrDrumkitCloneAudioProcessor();
-    ~CrayLdrDrumkitCloneAudioProcessor() override;
+    CrayLdrDrumLabV1AudioProcessor();
+    ~CrayLdrDrumLabV1AudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -66,21 +66,36 @@ private:
         float velocity = 0.0f;
         std::uint32_t noiseState = 0x1234567u;
         const SampleData* sample = nullptr;
+        std::uint32_t generation = 0;
     };
 
     static constexpr int maxVoices = 32;
     std::array<Voice, maxVoices> voices {};
     std::array<std::atomic<const SampleData*>, padCount> padSamplePointers {};
+    using Kit = std::array<std::unique_ptr<SampleData>, padCount>;
+    struct RetiredSample
+    {
+        std::unique_ptr<SampleData> data;
+        std::uint32_t generation = 0;
+    };
+    // samplePool owns the samples the pads point at right now. Replaced kits move to
+    // retiredSamples and are freed only after the audio thread has provably dropped them.
     std::vector<std::unique_ptr<SampleData>> samplePool;
+    std::vector<RetiredSample> retiredSamples;
+    std::atomic<std::uint32_t> kitGeneration { 1 };
+    std::atomic<std::uint32_t> audioSeenGeneration { 0 };
     std::mutex importMutex;
     std::unique_ptr<juce::ThreadPool> importWorkers;
-    static constexpr size_t maxRetainedSamples = 256;
+    static constexpr size_t maxRetainedSamples = 1024; // limit for current + not-yet-freed retired samples
     std::array<std::atomic<float>, padCount> pendingPadVelocities {};
     std::array<std::array<std::atomic<std::uint8_t>, patternStepCount>, padCount> patternSteps {};
     std::atomic<float> patternTempo { 120.0f };
     double currentSampleRate = 44100.0;
 
+    bool restoreStateInternal(const void* data, int sizeInBytes);
+    bool publishKitLocked(Kit& kit);
+    void sweepRetiredLocked();
     void startVoice(int midiNote, float velocity) noexcept;
     float renderVoice(Voice& voice) noexcept;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrayLdrDrumkitCloneAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrayLdrDrumLabV1AudioProcessor)
 };

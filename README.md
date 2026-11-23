@@ -1,4 +1,4 @@
-# CRAY LDR — DRUMKIT CLONE
+# CRAY LDR — DRUM LAB V1
 
 Windows x64 VST3 drum sampler and transient-slicing project.
 
@@ -23,7 +23,7 @@ Implemented:
 - Automated CTest target for synthetic transient-detection cases.
 - Windows GitHub Actions build and test workflow.
 
-**This is not yet the finished Drumkit Clone product.** The current detector slices transients from the supplied audio; it does not separate drums from a full instrumental. It does not yet provide neural source separation, reliable drum-family classification, similarity clustering/variation generation, a waveform editor, per-pad trim/gain controls, or a full kit browser. Do not interpret the transient slicer as AI drum extraction.
+**This is not yet the finished DRUM LAB V1 product.** The current detector slices transients from the supplied audio; it does not separate drums from a full instrumental. It does not yet provide neural source separation, reliable drum-family classification, similarity clustering/variation generation, a waveform editor, per-pad trim/gain controls, or a full kit browser. Do not interpret the transient slicer as AI drum extraction.
 
 ## Target product
 
@@ -86,9 +86,9 @@ GitHub Actions performs the same Windows x64 build and runs the automated CTest 
 
 ## FL Studio installation and routing
 
-The Drumkit Clone is built as a **VST3 instrument**, not a mixer insert effect.
+The DRUM LAB V1 is built as a **VST3 instrument**, not a mixer insert effect.
 
-1. Extract the release ZIP once. The folder `CRAY LDR - DRUMKIT CLONE.vst3` must be directly inside the Windows VST3 directory:
+1. Extract the release ZIP once. The folder `CRAY LDR - DRUM LAB V1.vst3` must be directly inside the Windows VST3 directory:
    `C:\Program Files\Common Files\VST3\`
 2. In FL Studio, open **Options → Manage plugins** and run **Find plugins**.
 3. Load the plugin from the instrument/plugin list in the Channel Rack. Do not try to insert it as an effect on a Mixer track.
