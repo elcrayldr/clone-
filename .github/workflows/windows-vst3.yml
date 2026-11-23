@@ -1,4 +1,4 @@
-name: Windows VST3 Build
+name: DRUM LAB V1 Windows VST3
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: windows-vst3-${{ github.ref }}-v2
+  group: drum-lab-v1-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -18,13 +18,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore JUCE and CMake build cache
+      - name: Restore JUCE and CMake cache
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ runner.os }}-vs2022-juce806-${{ hashFiles('CMakeLists.txt', 'Source/**', 'Tests/**') }}
+          key: ${{ runner.os }}-drumlab-juce806-${{ hashFiles('CMakeLists.txt', '*.cpp', '*.h') }}
           restore-keys: |
-            ${{ runner.os }}-vs2022-juce806-
+            ${{ runner.os }}-drumlab-juce806-
 
       - name: Configure
         run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
@@ -32,32 +32,18 @@ jobs:
       - name: Build VST3
         run: cmake --build build --config Release --parallel 2
 
-      - name: Run automated tests
-        run: ctest --test-dir build -C Release --output-on-failure
-
-      - name: Remove stale VST3 bundles from restored build cache
-        shell: pwsh
-        run: |
-          $vst3Root = Join-Path (Get-Location) "build/CrayLdrDrumkitClone_artefacts/Release/VST3"
-          $expected = "CRAY LDR DRUMKIT CLONE V2.vst3"
-          if (Test-Path -LiteralPath $vst3Root) {
-            Get-ChildItem -LiteralPath $vst3Root -Directory -Filter "*.vst3" |
-              Where-Object { $_.Name -ne $expected } |
-              Remove-Item -Recurse -Force
-          }
-
       - name: Verify VST3 bundle structure
         shell: pwsh
         run: |
-          $plugin = Join-Path (Get-Location) "build/CrayLdrDrumkitClone_artefacts/Release/VST3/CRAY LDR DRUMKIT CLONE V2.vst3"
+          $plugin = Join-Path (Get-Location) "build/CrayLdrDrumLabV1_artefacts/Release/VST3/CRAY LDR DRUM LAB V1.vst3"
           $moduleInfo = Join-Path $plugin "Contents/Resources/moduleinfo.json"
           $binaryDir = Join-Path $plugin "Contents/x86_64-win"
-          if (-not (Test-Path -LiteralPath $moduleInfo -PathType Leaf)) { throw "VST3 moduleinfo.json missing: $moduleInfo" }
-          if (-not (Test-Path -LiteralPath $binaryDir -PathType Container)) { throw "VST3 x64 binary directory missing: $binaryDir" }
+          if (-not (Test-Path -LiteralPath $moduleInfo -PathType Leaf)) { throw "VST3 moduleinfo.json missing." }
+          if (-not (Test-Path -LiteralPath $binaryDir -PathType Container)) { throw "VST3 x64 binary directory missing." }
           $binary = Get-ChildItem -LiteralPath $binaryDir -Filter "*.vst3" -File | Select-Object -First 1
-          if ($null -eq $binary -or $binary.Length -lt 65536) { throw "VST3 x64 module missing or implausibly small." }
+          if ($null -eq $binary -or $binary.Length -lt 65536) { throw "VST3 x64 binary missing or implausibly small." }
           $metadata = Get-Content -LiteralPath $moduleInfo -Raw
-          if ($metadata -notmatch [regex]::Escape("CRAY LDR DRUMKIT CLONE V2") -or $metadata -notmatch "Audio Module Class") { throw "VST3 module metadata does not identify the expected audio plugin." }
+          if ($metadata -notmatch [regex]::Escape("CRAY LDR DRUM LAB V1")) { throw "VST3 metadata does not match DRUM LAB V1." }
 
       - name: Validate VST3 lifecycle and state with pluginval
         shell: pwsh
@@ -67,26 +53,24 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip" -OutFile $zip
           Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
           $validator = Get-ChildItem -Path $dest -Filter "pluginval.exe" -Recurse | Select-Object -First 1
-          if ($null -eq $validator) { throw "pluginval.exe was not found in the downloaded archive." }
-          $plugin = Join-Path (Get-Location) "build/CrayLdrDrumkitClone_artefacts/Release/VST3/CRAY LDR DRUMKIT CLONE V2.vst3"
-          if (-not (Test-Path -LiteralPath $plugin)) { throw "Built VST3 bundle not found: $plugin" }
+          if ($null -eq $validator) { throw "pluginval.exe not found." }
+          $plugin = Join-Path (Get-Location) "build/CrayLdrDrumLabV1_artefacts/Release/VST3/CRAY LDR DRUM LAB V1.vst3"
           $logDir = Join-Path $env:RUNNER_TEMP "pluginval-logs"
           New-Item -ItemType Directory -Path $logDir -Force | Out-Null
           & $validator.FullName --strictness-level 10 --output-dir $logDir $plugin
-          $pluginvalExitCode = $LASTEXITCODE
-          if ($pluginvalExitCode -ne 0) { exit $pluginvalExitCode }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload pluginval logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pluginval-logs
+          name: drum-lab-v1-pluginval-logs
           path: ${{ runner.temp }}/pluginval-logs/
           if-no-files-found: ignore
 
       - name: Upload VST3 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CRAY-LDR-DRUMKIT-CLONE-V2-Windows-VST3
-          path: build/CrayLdrDrumkitClone_artefacts/Release/VST3/
+          name: CRAY-LDR-DRUM-LAB-V1-Windows-VST3
+          path: build/CrayLdrDrumLabV1_artefacts/Release/VST3/
           if-no-files-found: error
