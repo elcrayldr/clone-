@@ -73,7 +73,7 @@ private:
     std::array<std::atomic<const SampleData*>, padCount> padSamplePointers {};
     std::vector<std::unique_ptr<SampleData>> samplePool;
     std::mutex importMutex;
-    juce::ThreadPool importWorkers { 1 };
+    std::unique_ptr<juce::ThreadPool> importWorkers;
     static constexpr size_t maxRetainedSamples = 256;
     std::array<std::atomic<float>, padCount> pendingPadVelocities {};
     std::array<std::array<std::atomic<std::uint8_t>, patternStepCount>, padCount> patternSteps {};
