@@ -33,7 +33,8 @@ CrayLdrDrumkitCloneAudioProcessor::CrayLdrDrumkitCloneAudioProcessor()
 
 CrayLdrDrumkitCloneAudioProcessor::~CrayLdrDrumkitCloneAudioProcessor()
 {
-    importWorkers.removeAllJobs(true, -1);
+    if (importWorkers != nullptr)
+        importWorkers->removeAllJobs(true, -1);
 }
 
 void CrayLdrDrumkitCloneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
@@ -495,7 +496,12 @@ int CrayLdrDrumkitCloneAudioProcessor::importAudioFile(const juce::File& file, j
 void CrayLdrDrumkitCloneAudioProcessor::importAudioFileAsync(
     juce::File file, std::function<void(int, juce::String)> completion)
 {
-    importWorkers.addJob([this, file = std::move(file), completion = std::move(completion)]() mutable
+    // Create the worker only when the user actually imports audio. Some hosts, notably
+    // FL Studio, are sensitive to background threads started during VST3 construction.
+    if (importWorkers == nullptr)
+        importWorkers = std::make_unique<juce::ThreadPool>(1);
+
+    importWorkers->addJob([this, file = std::move(file), completion = std::move(completion)]() mutable
     {
         juce::String error;
         const int count = importAudioFile(file, error);
