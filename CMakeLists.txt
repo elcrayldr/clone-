@@ -35,6 +35,21 @@ if(CRAY_JUCE_READ_BLOCK_POSITION EQUAL -1)
     message(FATAL_ERROR "Could not apply CRAY LDR JUCE VST3 stream compatibility patch")
 endif()
 string(REPLACE "${CRAY_JUCE_OLD_READ_BLOCK}" "${CRAY_JUCE_NEW_READ_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+set(CRAY_JUCE_OLD_SEEK_BLOCK [==[        const auto seekToBeginningOfStream = [&]
+        {
+            return state->seek (0, IBStream::kIBSeekSet, nullptr) == kResultTrue;
+        };]==])
+set(CRAY_JUCE_NEW_SEEK_BLOCK [==[        const auto seekToBeginningOfStream = [&]
+        {
+            const auto result = state->seek (0, IBStream::kIBSeekSet, nullptr);
+            return result == kResultOk || result == kResultTrue;
+        };]==])
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_OLD_SEEK_BLOCK}" CRAY_JUCE_SEEK_BLOCK_POSITION)
+if(CRAY_JUCE_SEEK_BLOCK_POSITION EQUAL -1)
+    message(FATAL_ERROR "Could not apply CRAY LDR JUCE VST3 seek compatibility patch")
+endif()
+string(REPLACE "${CRAY_JUCE_OLD_SEEK_BLOCK}" "${CRAY_JUCE_NEW_SEEK_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+
 file(WRITE "${CRAY_JUCE_VST3_CLIENT}" "${CRAY_JUCE_VST3_SOURCE}")
 
 
