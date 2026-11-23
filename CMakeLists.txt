@@ -13,6 +13,31 @@ FetchContent_Declare(juce
 )
 FetchContent_MakeAvailable(juce)
 
+# JUCE 8.0.6 Fruity Wrapper state-stream compatibility workaround.
+set(CRAY_JUCE_VST3_CLIENT "${juce_SOURCE_DIR}/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp")
+file(READ "${CRAY_JUCE_VST3_CLIENT}" CRAY_JUCE_VST3_SOURCE)
+set(CRAY_JUCE_OLD_READ_BLOCK [==[                auto status = state->read (buffer, (Steinberg::int32) bytesPerBlock, &bytesRead);
+
+                if (bytesRead <= 0 || (status != kResultTrue && ! detail::PluginUtilities::getHostType().isWavelab()))
+                    break;
+
+                allData.write (buffer, static_cast<size_t> (bytesRead));]==])
+set(CRAY_JUCE_NEW_READ_BLOCK [==[                state->read (buffer, (Steinberg::int32) bytesPerBlock, &bytesRead);
+
+                // Some hosts may return kResultOk with a valid partial read.
+                // Continue until the stream reports that no bytes remain.
+                if (bytesRead <= 0)
+                    break;
+
+                allData.write (buffer, static_cast<size_t> (bytesRead));]==])
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_OLD_READ_BLOCK}" CRAY_JUCE_READ_BLOCK_POSITION)
+if(CRAY_JUCE_READ_BLOCK_POSITION EQUAL -1)
+    message(FATAL_ERROR "Could not apply CRAY LDR JUCE VST3 stream compatibility patch")
+endif()
+string(REPLACE "${CRAY_JUCE_OLD_READ_BLOCK}" "${CRAY_JUCE_NEW_READ_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+file(WRITE "${CRAY_JUCE_VST3_CLIENT}" "${CRAY_JUCE_VST3_SOURCE}")
+
+
 juce_add_plugin(CrayLdrDrumkitClone
     COMPANY_NAME "Cray LDR"
     BUNDLE_ID "com.crayldr.drumkitclone.v2"
