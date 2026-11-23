@@ -22,7 +22,7 @@ set(CRAY_JUCE_OLD_READ_BLOCK [==[                auto status = state->read (buff
                     break;
 
                 allData.write (buffer, static_cast<size_t> (bytesRead));]==])
-set(CRAY_JUCE_NEW_READ_BLOCK [==[                state->read (buffer, (Steinberg::int32) bytesPerBlock, &bytesRead);
+set(CRAY_JUCE_CACHED_READ_BLOCK [==[                state->read (buffer, (Steinberg::int32) bytesPerBlock, &bytesRead);
 
                 // Some hosts may return kResultOk with a valid partial read.
                 // Continue until the stream reports that no bytes remain.
@@ -30,11 +30,24 @@ set(CRAY_JUCE_NEW_READ_BLOCK [==[                state->read (buffer, (Steinberg
                     break;
 
                 allData.write (buffer, static_cast<size_t> (bytesRead));]==])
-string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_OLD_READ_BLOCK}" CRAY_JUCE_READ_BLOCK_POSITION)
-if(CRAY_JUCE_READ_BLOCK_POSITION EQUAL -1)
+set(CRAY_JUCE_NEW_READ_BLOCK [==[                auto status = state->read (buffer, (Steinberg::int32) bytesPerBlock, &bytesRead);
+
+                // FL Studio may report kResultOk as well as kResultTrue for a successful read.
+                if (bytesRead <= 0 || (status != kResultOk && status != kResultTrue))
+                    break;
+
+                allData.write (buffer, static_cast<size_t> (bytesRead));]==])
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_OLD_READ_BLOCK}" CRAY_JUCE_OLD_READ_POSITION)
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_CACHED_READ_BLOCK}" CRAY_JUCE_CACHED_READ_POSITION)
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_NEW_READ_BLOCK}" CRAY_JUCE_NEW_READ_POSITION)
+if(NOT CRAY_JUCE_OLD_READ_POSITION EQUAL -1)
+    string(REPLACE "${CRAY_JUCE_OLD_READ_BLOCK}" "${CRAY_JUCE_NEW_READ_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+elseif(NOT CRAY_JUCE_CACHED_READ_POSITION EQUAL -1)
+    string(REPLACE "${CRAY_JUCE_CACHED_READ_BLOCK}" "${CRAY_JUCE_NEW_READ_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+elseif(CRAY_JUCE_NEW_READ_POSITION EQUAL -1)
     message(FATAL_ERROR "Could not apply CRAY LDR JUCE VST3 stream compatibility patch")
 endif()
-string(REPLACE "${CRAY_JUCE_OLD_READ_BLOCK}" "${CRAY_JUCE_NEW_READ_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+
 set(CRAY_JUCE_OLD_SEEK_BLOCK [==[        const auto seekToBeginningOfStream = [&]
         {
             return state->seek (0, IBStream::kIBSeekSet, nullptr) == kResultTrue;
@@ -44,11 +57,13 @@ set(CRAY_JUCE_NEW_SEEK_BLOCK [==[        const auto seekToBeginningOfStream = [&
             const auto result = state->seek (0, IBStream::kIBSeekSet, nullptr);
             return result == kResultOk || result == kResultTrue;
         };]==])
-string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_OLD_SEEK_BLOCK}" CRAY_JUCE_SEEK_BLOCK_POSITION)
-if(CRAY_JUCE_SEEK_BLOCK_POSITION EQUAL -1)
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_OLD_SEEK_BLOCK}" CRAY_JUCE_OLD_SEEK_POSITION)
+string(FIND "${CRAY_JUCE_VST3_SOURCE}" "${CRAY_JUCE_NEW_SEEK_BLOCK}" CRAY_JUCE_NEW_SEEK_POSITION)
+if(NOT CRAY_JUCE_OLD_SEEK_POSITION EQUAL -1)
+    string(REPLACE "${CRAY_JUCE_OLD_SEEK_BLOCK}" "${CRAY_JUCE_NEW_SEEK_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
+elseif(CRAY_JUCE_NEW_SEEK_POSITION EQUAL -1)
     message(FATAL_ERROR "Could not apply CRAY LDR JUCE VST3 seek compatibility patch")
 endif()
-string(REPLACE "${CRAY_JUCE_OLD_SEEK_BLOCK}" "${CRAY_JUCE_NEW_SEEK_BLOCK}" CRAY_JUCE_VST3_SOURCE "${CRAY_JUCE_VST3_SOURCE}")
 
 file(WRITE "${CRAY_JUCE_VST3_CLIENT}" "${CRAY_JUCE_VST3_SOURCE}")
 
