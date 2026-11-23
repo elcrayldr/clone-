@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(CrayLdrDrumkitClone VERSION 0.1.0 LANGUAGES CXX)
+project(CrayLdrDrumkitClone VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
@@ -14,12 +14,12 @@ FetchContent_Declare(juce
 FetchContent_MakeAvailable(juce)
 
 juce_add_plugin(CrayLdrDrumkitClone
-    COMPANY_NAME "CRAY LDR"
+    COMPANY_NAME "Cray LDR"
     BUNDLE_ID "com.crayldr.drumkitclone.v2"
     PLUGIN_MANUFACTURER_CODE CrLd
     PLUGIN_CODE DrC2
     PRODUCT_NAME "CRAY LDR DRUMKIT CLONE V2"
-    VST3_CATEGORIES Instrument|Drum
+    VST3_CATEGORIES Drum
     DESCRIPTION "Drum kit extraction and sampler - independent V2 identity"
     FORMATS VST3
     IS_SYNTH TRUE
